@@ -4,12 +4,17 @@ services:
     container_name: practics-postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 123456
+      POSTGRES_PASSWORD: "123456"
       POSTGRES_DB: practics
     ports:
       - "9300:5432"
     volumes:
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d practics"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     networks:
       - practics
 
@@ -23,14 +28,55 @@ services:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/practics
       KC_DB_USERNAME: postgres
-      KC_DB_PASSWORD: 123456
-      KC_DB_SCHEMA: keycloak
+      KC_DB_PASSWORD: "123456"
+      KC_DB_SCHEMA: public
+      KC_HTTP_PORT: 8080
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 9200
+      KC_HOSTNAME_STRICT: "false"
     ports:
       - "9200:8080"
     volumes:
-      - ./docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
+      - ./docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    networks:
+      - practics
+
+  backend:
+    build:
+      context: ./src/backend
+    container_name: practics-backend
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgres://postgres:123456@postgres:5432/practics
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: myrealm
+      KEYCLOAK_CLIENT_ID: backend
+    ports:
+      - "9100:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    networks:
+      - practics
+
+  frontend:
+    build:
+      context: ./src/frontend
+      args:
+        VITE_API_URL: http://localhost:9100
+        VITE_KEYCLOAK_URL: http://localhost:9200
+        VITE_KEYCLOAK_REALM: practics
+        VITE_KEYCLOAK_CLIENT_ID: frontend
+    container_name: practics-frontend
+    ports:
+      - "9000:80"
+    depends_on:
+      - backend
     networks:
       - practics
 
