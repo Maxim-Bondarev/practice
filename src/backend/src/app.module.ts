@@ -9,7 +9,7 @@ import { ConfigModule } from '@nestjs/config';
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'localhost',
+      host: 'postgres',
       port: 5432,
       username: 'postgres',
       password: '123456',

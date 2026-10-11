@@ -146,6 +146,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       login,
       register,
       logout,
+      loadUserProfile,
       hasRole,
     }),
     [initialized, authenticated, user, token],
