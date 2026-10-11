@@ -17,6 +17,7 @@ export interface UserProfile {
   firstName?: string;
   lastName?: string;
   roles: string[];
+  role: string;
 }
 
 interface AuthContextValue {
@@ -26,7 +27,7 @@ interface AuthContextValue {
   user: UserProfile | null;
   token: string | null;
   login: (redirectPath?: string) => Promise<void>;
-  register: (redirectPath?: string) => Promise<void>
+  register: (redirectPath?: string) => Promise<void>;
   logout: (redirectPath?: string) => Promise<void>;
   hasRole: (role: string) => boolean;
 }
@@ -94,7 +95,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
       | Record<string, { roles?: string[] }>
       | undefined;
 
-    const realmRoles = realmAccess?.roles ?? [];
+    const SYSTEM_ROLES = new Set([
+      "default-roles-practics",
+      "offline_access",
+      "uma_authorization",
+      "manage-account",
+      "view-profile",
+      "view-consent",
+      "manage-consent",
+      "delete-account",
+    ]);
+
+    const realmRoles = (realmAccess?.roles ?? []).filter(
+      (r) => !SYSTEM_ROLES.has(r),
+    );
     const clientRoles =
       resourceAccess?.[import.meta.env.VITE_KEYCLOAK_CLIENT_ID as string]
         ?.roles ?? [];
@@ -106,6 +120,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       firstName: parsed?.given_name as string | undefined,
       lastName: parsed?.family_name as string | undefined,
       roles: Array.from(new Set([...realmRoles, ...clientRoles])),
+      role: parsed?.role as string,
     };
   };
 
@@ -118,9 +133,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const register = async (redirectPath: string = "/") => {
     await keycloak.register({
-      redirectUri: window.location.origin + redirectPath
-    })
-  }
+      redirectUri: window.location.origin + redirectPath,
+    });
+  };
 
   const logout = async (redirectPath: string = "/") => {
     setUser(null);
