@@ -2,7 +2,14 @@ import React from 'react'
 
 function CreateApplicationPage() {
   return (
-    <div>CreateApplicationPage</div>
+    <div className='create-application-page'>
+        <div className='form-block'>
+            <form action="">
+                <textarea name="" id="" placeholder='Опишите проблему'/>
+                
+            </form>
+        </div>
+    </div>
   )
 }
 

@@ -19,6 +19,8 @@ function HomePage({
   onCategoryChange,
 }: Props) {
 
+  const {authenticated, login} = useAuth()
+
   const navigate = useNavigate()
   return (
     <div className="home_page">
@@ -57,7 +59,7 @@ function HomePage({
             </div>
           ))}
       </div>
-      <button onClick={()=> navigate('/create-application')}>+ Создать заявку</button>
+      {authenticated ? <button onClick={()=> navigate('/create-application')}>+ Создать заявку</button> : <button onClick={()=> login('/create-application')}>+ Создать заявку</button>}
     </div>
   );
 }
