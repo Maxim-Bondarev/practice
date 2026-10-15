@@ -3,5 +3,6 @@ export interface Application {
   title: string;
   descriptions: string;
   date: Date;
+  project: string;
   status: "Все" | "Новые" | "В обработке" | "Завершенные" | "Отклоненные";
 }

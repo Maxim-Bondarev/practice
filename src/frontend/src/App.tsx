@@ -15,6 +15,7 @@ const ALL_APPLICATIONS: Application[] = [
     title: "Не приходит код",
     descriptions: "...",
     date: new Date("2026-05-12"),
+    project: "1X",
     status: "Новые",
   },
   {
@@ -22,6 +23,7 @@ const ALL_APPLICATIONS: Application[] = [
     title: "Ошибка оплаты",
     descriptions: "...",
     date: new Date("2026-05-10"),
+    project: "Music",
     status: "В обработке",
   },
   {
@@ -29,6 +31,7 @@ const ALL_APPLICATIONS: Application[] = [
     title: "Смена email",
     descriptions: "...",
     date: new Date("2026-05-08"),
+    project: "Delivery",
     status: "Завершенные",
   },
 ];
