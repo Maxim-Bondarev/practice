@@ -14,6 +14,11 @@ a {
   text-decoration: none;
 }
 
+h1,
+p {
+  font-family: Monserrat;
+}
+
 .header {
   margin-top: 50px;
   display: flex;
@@ -41,7 +46,123 @@ a {
 }
 
 .home_page {
+  width: 900px;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  margin: 0 auto;
+}
+
+.home_page input {
+  width: 838px;
+  padding: 14px 16px 14px 44px;
+  font-size: 15px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  outline: none;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.home_page input:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+}
+
+.home_page button {
+  
+  width: 200px;
+  background: #4f46e5;
+  color: #fff;
+  border: none;
+  padding: 16px 24px;
+  border-radius: 999px;
+  font-size: 15px;
+  margin-top: 40px;
+  font-weight: 600;
+  margin-left: 350px;
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(79, 70, 229, 0.35);
   align-items: center;
+  gap: 10px;
+  transition:
+    background 0.15s,
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+
+.home_page button:hover {
+  background: #4338ca;
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(79, 70, 229, 0.45);
+}
+
+.home_page button:active {
+  transform: translateY(0);
+}
+
+.search_block {
+  position: relative;
+}
+
+.categories {
+  display: flex;
+  margin-top: 30px;
+  gap: 40px;
+}
+
+.categories div {
+  padding: 5px 15px;
+  border-radius: 15px;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.categories div:hover {
+  border-color: #c7d2fe;
+}
+
+.categories div.active {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+}
+
+.applications-list {
+  margin-top: 50px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 25px;
+  max-height: 420px;
+  box-sizing: border-box;
+}
+
+.applications-list div {
+  border-radius: 20px;
+  border: 1px solid #e5e7eb;
+  padding: 10px 100px 10px 10px;
+  position: relative;
+}
+
+.applications-list div h1 {
+  font-size: 20px;
+}
+
+.applications-list div p {
+  font-size: 15px;
+  color: #6b7280;
+}
+
+.status {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  background-color: #4f46e5;
+  border-radius: 30px;
+  padding: 5px 10px;
+  white-space: nowrap;
+  color: #fff;
 }

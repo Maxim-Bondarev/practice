@@ -6,16 +6,28 @@ import { useAuth } from "../contexts/AuthContext";
 import { Link } from "react-router-dom";
 
 function Header() {
-  const { user } = useAuth();
+  const { authenticated, user, login } = useAuth();
   return (
     <div className="header">
-        <p className="logo"><Link to='/'>Feedback <MdOutlineFeedback size={23}/></Link></p>
+      <p className="logo">
+        <Link to="/">
+          Feedback <MdOutlineFeedback size={23} />
+        </Link>
+      </p>
       <ul>
         <li>
-          <IoNotificationsOutline size={23}/>
+          <IoNotificationsOutline size={23} />
         </li>
         <li>
-          <Link to='/account'><FaRegUser size={23}/> {user?.username}</Link>
+          {authenticated ? (
+            <Link to="/account">
+              <FaRegUser size={23} /> {user?.username}
+            </Link>
+          ) : (
+            <Link to="/register" onClick={()=> login("/")}>
+              <FaRegUser size={23} /> Войти
+            </Link>
+          )}
         </li>
       </ul>
     </div>

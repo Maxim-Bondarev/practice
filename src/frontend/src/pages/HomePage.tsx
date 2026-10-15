@@ -1,13 +1,63 @@
 import React from "react";
-import { Link, Navigate, Route } from "react-router-dom";
+import { Link, useNavigate} from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import type { Application } from "../types/types";
+import Categories from "../components/Categories";
+import { IoClose } from "react-icons/io5";
 
-function HomePage() {
-  const { register, logout, user, authenticated } = useAuth();
+interface Props {
+  items: Application[];
+  searchValue: string;
+  onCategoryChange: (c: string) => void;
+  onSetSearchValue: (c: string) => void;
+}
 
+function HomePage({
+  items,
+  searchValue,
+  onSetSearchValue,
+  onCategoryChange,
+}: Props) {
+
+  const navigate = useNavigate()
   return (
     <div className="home_page">
-      
+      <h1>Заявки</h1>
+      <p>Здесь вы можете найти и отследить обращения</p>
+      <div className="search_block">
+        <input
+          value={searchValue}
+          onChange={(event) => onSetSearchValue(event.target.value)}
+          type="text"
+          placeholder="поиск заявки"
+        />
+        <IoClose
+          style={{
+            position: "absolute",
+            top: "14px",
+            right: "20px",
+            cursor: "pointer",
+          }}
+          size={20}
+          onClick={() => onSetSearchValue("")}
+        />
+      </div>
+      <Categories items={items} onCategoryChange={onCategoryChange} />
+      <div className="applications-list">
+        {items
+          .filter((item) =>
+            item.title.toLowerCase().includes(searchValue.toLowerCase()),
+          )
+          .map((item) => (
+            <div key={item.id}>
+              <h1>{item.title}</h1>
+              <p>{item.descriptions}</p>
+              <span className="status">{item.status}</span>
+              <span>{item.date.toLocaleDateString()}</span>
+            </div>
+          ))}
+      </div>
+      <button onClick={()=> navigate('/create-application')}>+ Создать заявку</button>
     </div>
   );
 }

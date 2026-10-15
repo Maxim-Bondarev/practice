@@ -39,7 +39,7 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [initialized, setInitialized] = useState(false);
+  const [initialized, setInitialized]   = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [token, setToken] = useState<string | null>(null);

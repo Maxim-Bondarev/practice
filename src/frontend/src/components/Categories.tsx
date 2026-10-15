@@ -1,9 +1,30 @@
-import React from 'react'
+import React, { useState } from "react";
+import type { Application } from "../types/types";
 
-function Categories() {
-  return (
-    <div>Categories</div>
-  )
+
+interface Props{
+  items: Application[],
+  onCategoryChange: (c: string) => void
 }
 
-export default Categories
+
+function Categories({ items, onCategoryChange } : Props) {
+  const [currentItems, setCurentItems] = useState([]);
+  const categories = [
+    { key: "Все", name: "Все" },
+    { key: "Новые", name: "Новые" },
+    { key: "В обработке", name: "В работе" },
+    { key: "Завершенные", name: "Завершенные" },
+    { key: "Отклоненные", name: "Отклоненные" },
+  ];
+
+  return (
+    <div className="categories">
+      {categories.map((el) => (
+        <div key={el.key} onClick={() => onCategoryChange(el.key)}>{el.name}</div>
+      ))}
+    </div>
+  );
+}
+
+export default Categories;
