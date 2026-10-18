@@ -33,7 +33,7 @@ function CreateApplicationPage() {
       title: formValue.title,
       date: new Date(),
       project: formValue.project,
-      status: "Мои",
+      status: "На модерации",
     };
     console.log(formValue);
     ALL_APPLICATIONS.push(newApplication);

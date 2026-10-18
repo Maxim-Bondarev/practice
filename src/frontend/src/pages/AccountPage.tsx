@@ -7,7 +7,7 @@ import { ALL_APPLICATIONS } from "../App";
 import type { Application } from "../types/types";
 
 function AccountPage() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   if (!user) {
     return;
@@ -32,6 +32,9 @@ function AccountPage() {
         <p>
           <span>Имя: </span>{user.firstName} {user.lastName}
         </p>
+
+        <p>{user.role}</p>
+        
       </div>
       <div className="application_history">
         <label className="history_label">История заявок: <span>{count_application(ALL_APPLICATIONS)} шт</span></label>
@@ -44,6 +47,9 @@ function AccountPage() {
             </div>
           ),
         )}
+      </div>
+      <div className="logout">
+        <button onClick={()=>logout()}>Выйти из аккаунта</button>
       </div>
     </div>
   );

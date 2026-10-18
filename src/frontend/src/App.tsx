@@ -1,8 +1,6 @@
 import { Navigate, replace, Route, Routes } from "react-router-dom";
 import "./App.css";
 import HomePage from "./pages/HomePage";
-import Register from "./components/Register";
-import Login from "./components/Login";
 import AccountPage from "./pages/AccountPage";
 import Header from "./components/Header";
 import { useState } from "react";
@@ -16,7 +14,7 @@ export const ALL_APPLICATIONS: Application[] = [
     title: "Не приходит код",
     date: new Date("2026-05-12"),
     project: "1X",
-    status: "Новые",
+    status: "На модерации",
   },
   {
     id: "#1021",
@@ -55,7 +53,7 @@ function App() {
 
   return (
     <>
-      <Header />
+      <Header/>
       <Routes>
         <Route
           path="/"
@@ -68,8 +66,6 @@ function App() {
             />
           }
         />
-        <Route path="/register" element={<Register />} />
-        <Route path="/login" element={<Login />} />
         <Route path="/account" element={<AccountPage />} />
         <Route path="/create-application" element={<CreateApplicationPage />} />
         <Route path="/moderation" element={<Moderation />} />

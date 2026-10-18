@@ -141,7 +141,8 @@ p {
 }
 
 .applications-list div,
-.application_history div {
+.application_history div,
+.moderation div{
   border-radius: 20px;
   border: 1px solid #e5e7eb;
   padding: 10px 100px 10px 10px;
@@ -149,12 +150,14 @@ p {
 }
 
 .applications-list div h1,
-.application_history div h1 {
+.application_history div h1,
+.moderation div h1 {
   font-size: 20px;
 }
 
 .applications-list div p,
-.application_history div p {
+.application_history div p,
+.moderation div p {
   font-size: 15px;
   color: #6b7280;
 }
@@ -334,40 +337,36 @@ p {
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.35);
 }
 
-/* Общий контейнер страницы чата */
 .chat {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  align-items: center; /* центрируем по горизонтали */
-  justify-content: center; /* центрируем по вертикали */
+  align-items: center; 
+  justify-content: center; 
   padding: 24px;
   box-sizing: border-box;
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* Окно чата — 1200px */
 .window_chat {
   width: 1200px;
   height: 600px;
-  max-width: 100%; /* чтобы не вылезало за экран на ноутбуках */
+  max-width: 100%; 
   margin-bottom: 16px;
   background-color: #cbd5e0;
 }
 
-/* Строка ввода: инпут + скрепка + отправить */
 .messagge_input {
   display: flex;
-  align-items: center; /* выравниваем по центру по вертикали */
+  align-items: center; 
   gap: 8px;
   width: 1200px;
-  max-width: 100%; /* на узких экранах не вылезает */
+  max-width: 100%; 
 }
 
-/* Текстовый инпут — стили как ты просил */
 .text_input {
-  flex: 1; /* растягивается на всё свободное место */
+  flex: 1; 
   padding: 14px 16px;
   font-size: 15px;
   border: 1px solid #e5e7eb;
@@ -383,8 +382,8 @@ p {
   border-color: #4f46e5;
   box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
 }
+button
 
-/* Иконочные кнопки */
 .icon_btn {
   display: flex;
   align-items: center;
@@ -472,4 +471,39 @@ p {
   font-weight: 600;
   padding: 0 12px;
   text-align: center;
+}
+
+.moderation{
+  width: 900px;
+  margin: 0 auto;
+}
+
+/*______________________*/
+.moderation button {
+  margin-top: 20px;
+  margin-left: 20px;
+  padding: 6px 12px;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+  font-family: inherit;
+  color: #ffffff;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.35);
+}
+
+.moderation button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.45);
+}
+
+.moderation button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.35);
 }

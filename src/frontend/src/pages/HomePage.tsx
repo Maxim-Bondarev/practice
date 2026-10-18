@@ -47,7 +47,7 @@ function HomePage({
       <div className="applications-list">
         {items
           .filter((item) =>
-            item.title.toLowerCase().includes(searchValue.toLowerCase()),
+            item.title.toLowerCase().includes(searchValue.toLowerCase()) && item.status !== "На модерации",
           )
           .map((item) => (
             <div key={item.id}>
