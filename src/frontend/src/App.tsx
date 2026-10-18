@@ -8,12 +8,12 @@ import Header from "./components/Header";
 import { useState } from "react";
 import type { Application } from "./types/types";
 import CreateApplicationPage from "./pages/CreateApplicationPage";
+import Moderation from "./pages/Moderation";
 
-const ALL_APPLICATIONS: Application[] = [
+export const ALL_APPLICATIONS: Application[] = [
   {
     id: "#1024",
     title: "Не приходит код",
-    descriptions: "...",
     date: new Date("2026-05-12"),
     project: "1X",
     status: "Новые",
@@ -21,7 +21,6 @@ const ALL_APPLICATIONS: Application[] = [
   {
     id: "#1021",
     title: "Ошибка оплаты",
-    descriptions: "...",
     date: new Date("2026-05-10"),
     project: "Music",
     status: "В обработке",
@@ -29,10 +28,9 @@ const ALL_APPLICATIONS: Application[] = [
   {
     id: "#1018",
     title: "Смена email",
-    descriptions: "...",
     date: new Date("2026-05-08"),
     project: "Delivery",
-    status: "Завершенные",
+    status: "Мои",
   },
 ];
 
@@ -40,7 +38,7 @@ function App() {
   const [currentItems, setCurrentItems] =
     useState<Application[]>(ALL_APPLICATIONS);
   const [currentCategories, setCurrentCategories] = useState<string>("all");
-  const [searchValue, setSearchValue] = useState('');
+  const [searchValue, setSearchValue] = useState("");
 
   const chooseCategories = (category: string) => {
     setCurrentCategories(category);
@@ -73,7 +71,8 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
         <Route path="/account" element={<AccountPage />} />
-        <Route path="/create-application" element={<CreateApplicationPage/>} />
+        <Route path="/create-application" element={<CreateApplicationPage />} />
+        <Route path="/moderation" element={<Moderation />} />
       </Routes>
     </>
   );

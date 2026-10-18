@@ -16,7 +16,11 @@ function Header() {
       </p>
       <ul>
         <li>
-          <IoNotificationsOutline size={23} />
+          {user && user.role === "admin" ? (
+            <Link to="/moderation">Модерация</Link>
+          ) : (
+            <IoNotificationsOutline size={23} />
+          )}
         </li>
         <li>
           {authenticated ? (
@@ -24,7 +28,7 @@ function Header() {
               <FaRegUser size={23} /> {user?.username}
             </Link>
           ) : (
-            <Link to="/register" onClick={()=> login("/")}>
+            <Link to="/register" onClick={() => login("/")}>
               <FaRegUser size={23} /> Войти
             </Link>
           )}

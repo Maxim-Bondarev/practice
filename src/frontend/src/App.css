@@ -71,7 +71,6 @@ p {
 }
 
 .home_page button {
-  
   width: 200px;
   background: #4f46e5;
   color: #fff;
@@ -129,7 +128,8 @@ p {
   box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
 }
 
-.applications-list {
+.applications-list,
+.application_history {
   margin-top: 50px;
   display: flex;
   flex-direction: column;
@@ -137,20 +137,24 @@ p {
   gap: 25px;
   max-height: 420px;
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
-.applications-list div {
+.applications-list div,
+.application_history div {
   border-radius: 20px;
   border: 1px solid #e5e7eb;
   padding: 10px 100px 10px 10px;
   position: relative;
 }
 
-.applications-list div h1 {
+.applications-list div h1,
+.application_history div h1 {
   font-size: 20px;
 }
 
-.applications-list div p {
+.applications-list div p,
+.application_history div p {
   font-size: 15px;
   color: #6b7280;
 }
@@ -165,4 +169,307 @@ p {
   padding: 5px 10px;
   white-space: nowrap;
   color: #fff;
+}
+
+.create-application-page {
+  margin-top: 50px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 20px 40px;
+  background: #f7fafc;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  box-sizing: border-box;
+}
+
+.create-application-page h1 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a202c;
+  text-align: center;
+}
+
+.create-application-page > p {
+  margin: 0 0 24px;
+  font-size: 15px;
+  color: #718096;
+  text-align: center;
+  max-width: 480px;
+  line-height: 1.5;
+}
+
+.form-block {
+  width: 100%;
+  max-width: 520px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 32px 40px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
+  box-sizing: border-box;
+  animation: fadeUp 0.4s ease-out;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.form-block form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-block label {
+  margin-top: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.form-block label:first-child {
+  margin-top: 0;
+}
+
+.form-block select {
+  width: 100%;
+  padding: 12px 40px 12px 14px;
+  font-size: 15px;
+  font-family: inherit;
+  color: #2d3748;
+  background-color: #f7fafc;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%23718096' d='M6 8L0 0h12z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s,
+    box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.form-block select:hover {
+  border-color: #cbd5e0;
+}
+
+.form-block select:focus {
+  border-color: #667eea;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+}
+
+.form-block textarea {
+  width: 100%;
+  min-height: 140px;
+  padding: 14px;
+  font-size: 15px;
+  font-family: inherit;
+  line-height: 1.5;
+  color: #2d3748;
+  background: #f7fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  outline: none;
+  resize: vertical;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s,
+    box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.form-block textarea::placeholder {
+  color: #a0aec0;
+}
+.form-block textarea:hover {
+  border-color: #cbd5e0;
+}
+
+.form-block textarea:focus {
+  border-color: #667eea;
+  background: input#ffffff;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+}
+
+.form-block button {
+  margin-top: 20px;
+  padding: 14px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #ffffff;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.35);
+}
+
+.form-block button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.45);
+}
+
+.form-block button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.35);
+}
+
+/* Общий контейнер страницы чата */
+.chat {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* центрируем по горизонтали */
+  justify-content: center; /* центрируем по вертикали */
+  padding: 24px;
+  box-sizing: border-box;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Окно чата — 1200px */
+.window_chat {
+  width: 1200px;
+  height: 600px;
+  max-width: 100%; /* чтобы не вылезало за экран на ноутбуках */
+  margin-bottom: 16px;
+  background-color: #cbd5e0;
+}
+
+/* Строка ввода: инпут + скрепка + отправить */
+.messagge_input {
+  display: flex;
+  align-items: center; /* выравниваем по центру по вертикали */
+  gap: 8px;
+  width: 1200px;
+  max-width: 100%; /* на узких экранах не вылезает */
+}
+
+/* Текстовый инпут — стили как ты просил */
+.text_input {
+  flex: 1; /* растягивается на всё свободное место */
+  padding: 14px 16px;
+  font-size: 15px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  outline: none;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.text_input:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+}
+
+/* Иконочные кнопки */
+.icon_btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  color: #6b7280;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background-color 0.15s,
+    transform 0.1s;
+}
+
+.icon_btn:hover {
+  color: #4f46e5;
+  border-color: #4f46e5;
+  background: #f9fafb;
+}
+
+.icon_btn:active {
+  transform: scale(0.95);
+}
+
+.send_btn {
+  color: #ffffff;
+  background: #4f46e5;
+  border-color: #4f46e5;
+}
+
+.send_btn:hover {
+  color: #ffffff;
+  background: #4338ca;
+  border-color: #4338ca;
+}
+
+.account_page {
+  width: 900px;
+  margin: 0 auto;
+}
+
+.account_page p{
+  font-size: 24px;
+}
+
+.account_page button {
+  padding: 14px 24px;
+  font-size: 17px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #ffffff;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.35);
+}
+
+.account_page button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.45);
+}
+
+.account_page button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.35);
+}
+
+.history_label{
+  font-size: 20px;
+}
+
+.history_label span{
+  background-color: #4f46e5;
+  border-radius: 10px;
+  color:#ffffff;
+  font-weight: 600;
+  padding: 0 12px;
+  text-align: center;
 }

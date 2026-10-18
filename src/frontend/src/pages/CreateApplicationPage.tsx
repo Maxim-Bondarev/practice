@@ -1,16 +1,80 @@
-import React from 'react'
+import React, { useState, type FormEvent } from "react";
+import type { Application } from "../types/types";
+import { ALL_APPLICATIONS } from "../App";
+import { toast } from "sonner";
 
-function CreateApplicationPage() {
-  return (
-    <div className='create-application-page'>
-        <div className='form-block'>
-            <form action="">
-                <textarea name="" id="" placeholder='Опишите проблему'/>
-                
-            </form>
-        </div>
-    </div>
-  )
+import Chat from "../components/Chat";
+
+interface ApplicationForm {
+  project: string;
+  title: string;
 }
 
-export default CreateApplicationPage
+function CreateApplicationPage() {
+  const [formValue, setFormValue] = useState<ApplicationForm>({
+    title: "",
+    project: "",
+  });
+
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
+  ) => {
+    const { name, value } = e.target;
+    setFormValue((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    const newApplication: Application = {
+      id: new Date().toString(),
+      title: formValue.title,
+      date: new Date(),
+      project: formValue.project,
+      status: "Мои",
+    };
+    console.log(formValue);
+    ALL_APPLICATIONS.push(newApplication);
+    setFormValue({ title: "", project: "" });
+
+    toast.success("Успешно", {
+      description: "Заявка успешно отправлена",
+    });
+  };
+
+  return (
+    <div className="create-application-page">
+      <h1>Оформление заявки</h1>
+      <p>Опишите проблему и мы свяжемся с вами в течении рабочего дня</p>
+      <div className="form-block">
+        <form onSubmit={handleSubmit}>
+          <label>Проект</label>
+          <select
+            value={formValue.project}
+            onChange={handleChange}
+            name="project"
+            id="project-select"
+          >
+            <option value="">Выберете проект</option>
+            <option value="1x">1X</option>
+            <option value="music">Music</option>
+            <option value="delivery">Delivery</option>
+          </select>
+          <label>Описание проблемы</label>
+          <textarea
+            value={formValue.title}
+            onChange={handleChange}
+            name="title"
+            placeholder="Опишите проблему"
+          />
+          <button type="submit">Оставить заявку</button>
+        </form>
+      </div>
+      <Chat />
+    </div>
+  );
+}
+
+export default CreateApplicationPage;

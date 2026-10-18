@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useNavigate} from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import type { Application } from "../types/types";
 import Categories from "../components/Categories";
@@ -18,10 +18,9 @@ function HomePage({
   onSetSearchValue,
   onCategoryChange,
 }: Props) {
+  const { authenticated, login } = useAuth();
 
-  const {authenticated, login} = useAuth()
-
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   return (
     <div className="home_page">
       <h1>Заявки</h1>
@@ -53,13 +52,20 @@ function HomePage({
           .map((item) => (
             <div key={item.id}>
               <h1>{item.title}</h1>
-              <p>{item.descriptions}</p>
               <span className="status">{item.status}</span>
               <span>{item.date.toLocaleDateString()}</span>
             </div>
           ))}
       </div>
-      {authenticated ? <button onClick={()=> navigate('/create-application')}>+ Создать заявку</button> : <button onClick={()=> login('/create-application')}>+ Создать заявку</button>}
+      {authenticated ? (
+        <button onClick={() => navigate("/create-application")}>
+          + Создать заявку
+        </button>
+      ) : (
+        <button onClick={() => login("/create-application")}>
+          + Создать заявку
+        </button>
+      )}
     </div>
   );
 }
