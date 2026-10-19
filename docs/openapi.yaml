@@ -5,20 +5,6 @@ info:
   description: |
     API системы обращений (заявок) Feedback.
 
-    Спецификация составлена по фронтенду: контракт взят из `src/types/types.ts`
-    (`ApplicationDto`, `CreateApplicationRequest`, `UpdateApplicationStatusRequest`,
-    `ModerationDecisionRequest`, `ApiError`, `ApplicationFilters`) и из поведения страниц
-    (главная, создание заявки, модерация, аккаунт).
-
-    Сейчас фронтенд ещё не ходит в API (данные захардкожены в `ALL_APPLICATIONS`),
-    поэтому это **целевой контракт**, а не описание уже работающего бэкенда.
-    Раздел `Chat` — предполагаемый контракт: чат с поддержкой у каждой заявки свой, он
-    показывается на странице заявки (`/applications/:id`) под её описанием. Реализации чата
-    во фронтенде пока нет, поэтому модель сообщения выбрана мной.
-
-    Авторизация: Keycloak (OIDC, PKCE S256). Фронтенд получает access-токен через
-    `keycloak-js` и должен передавать его в заголовке `Authorization: Bearer <token>`.
-    Роль модератора — `admin` (так её проверяет `Header.tsx`); проверять её нужно на бэкенде.
 servers:
   - url: "{apiUrl}"
     description: Значение переменной VITE_API_URL
