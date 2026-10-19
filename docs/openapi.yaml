@@ -1,0 +1,468 @@
+openapi: 3.0.3
+info:
+  title: Feedback API
+  version: 0.1.0
+  description: |
+    API системы обращений (заявок) Feedback.
+
+    Спецификация составлена по фронтенду: контракт взят из `src/types/types.ts`
+    (`ApplicationDto`, `CreateApplicationRequest`, `UpdateApplicationStatusRequest`,
+    `ModerationDecisionRequest`, `ApiError`, `ApplicationFilters`) и из поведения страниц
+    (главная, создание заявки, модерация, аккаунт).
+
+    Сейчас фронтенд ещё не ходит в API (данные захардкожены в `ALL_APPLICATIONS`),
+    поэтому это **целевой контракт**, а не описание уже работающего бэкенда.
+    Раздел `Chat` — предполагаемый контракт: чат с поддержкой у каждой заявки свой, он
+    показывается на странице заявки (`/applications/:id`) под её описанием. Реализации чата
+    во фронтенде пока нет, поэтому модель сообщения выбрана мной.
+
+    Авторизация: Keycloak (OIDC, PKCE S256). Фронтенд получает access-токен через
+    `keycloak-js` и должен передавать его в заголовке `Authorization: Bearer <token>`.
+    Роль модератора — `admin` (так её проверяет `Header.tsx`); проверять её нужно на бэкенде.
+servers:
+  - url: "{apiUrl}"
+    description: Значение переменной VITE_API_URL
+    variables:
+      apiUrl:
+        default: http://localhost:3000/api
+
+tags:
+  - name: Applications
+    description: Заявки пользователей
+  - name: Moderation
+    description: Модерация заявок (роль admin)
+  - name: Chat
+    description: Чат с поддержкой. У каждой заявки свой отдельный чат
+
+paths:
+  /applications:
+    get:
+      tags: [Applications]
+      operationId: listApplications
+      summary: Список заявок
+      description: |
+        Публичная лента. Заявки со статусом «На модерации» в неё не попадают
+        (главная страница их скрывает). Для `mine=true` нужен токен.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Фильтр по статусу (категории «Новые», «В обработке» и т.д.)
+          schema:
+            $ref: "#/components/schemas/ApplicationStatus"
+        - name: search
+          in: query
+          description: Поиск по заголовку, без учёта регистра
+          schema:
+            type: string
+        - name: mine
+          in: query
+          description: Только заявки текущего пользователя (категория «Мои»)
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Список заявок
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApplicationDto"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Applications]
+      operationId: createApplication
+      summary: Создать заявку
+      description: Новая заявка всегда создаётся со статусом «На модерации».
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateApplicationRequest"
+      responses:
+        "201":
+          description: Заявка создана
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationDto"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /applications/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ApplicationId"
+    get:
+      tags: [Applications]
+      operationId: getApplication
+      summary: Получить заявку
+      description: |
+        Данные для страницы заявки (`/applications/:id`), под которой находится чат.
+        Заявку «На модерации» могут видеть только автор и admin.
+      security:
+        - {}
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Заявка
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationDto"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /applications/{id}/status:
+    parameters:
+      - $ref: "#/components/parameters/ApplicationId"
+    patch:
+      tags: [Applications]
+      operationId: updateApplicationStatus
+      summary: Изменить статус заявки
+      description: Доступно роли admin.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateApplicationStatusRequest"
+      responses:
+        "200":
+          description: Статус обновлён
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationDto"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /moderation/applications:
+    get:
+      tags: [Moderation]
+      operationId: listPendingApplications
+      summary: Заявки, ожидающие модерации
+      description: Страница `/moderation`. Возвращает заявки со статусом «На модерации». Роль admin.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Список заявок на модерации
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApplicationDto"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /moderation/applications/{id}/decision:
+    parameters:
+      - $ref: "#/components/parameters/ApplicationId"
+    post:
+      tags: [Moderation]
+      operationId: moderateApplication
+      summary: Одобрить или отклонить заявку
+      description: |
+        `approve` переводит заявку в статус «Новые», `reject` — в «Отклоненные»
+        (как в `Moderation.tsx`). Повторно модерировать уже обработанную заявку нельзя.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModerationDecisionRequest"
+      responses:
+        "200":
+          description: Решение применено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationDto"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Заявка уже не находится на модерации
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /applications/{id}/messages:
+    parameters:
+      - $ref: "#/components/parameters/ApplicationId"
+    get:
+      tags: [Chat]
+      operationId: listMessages
+      summary: Сообщения чата заявки
+      description: |
+        Доступно автору заявки и сотрудникам поддержки (admin).
+        Для обновления чата без WebSocket можно опрашивать endpoint с параметром `after`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: after
+          in: query
+          description: Вернуть только сообщения, созданные позже этого момента
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Сообщения по возрастанию даты
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [Chat]
+      operationId: sendMessage
+      summary: Отправить сообщение в чат заявки
+      description: |
+        Текст и/или файл (кнопка-скрепка в `Chat.tsx`). Нужно передать хотя бы одно из полей.
+        Автор заявки пишет как `user`, сотрудник поддержки — как `support`
+        (роль определяется по токену, клиент её не передаёт).
+        В заявке «На модерации», «Завершенные» или «Отклоненные» писать нельзя — 409.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                  maxLength: 4000
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Сообщение создано
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Чат закрыт — статус заявки не позволяет писать
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "413":
+          description: Файл слишком большой
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access-токен Keycloak (`keycloak.token`).
+    keycloak:
+      type: openIdConnect
+      openIdConnectUrl: https://KEYCLOAK_HOST/realms/REALM/.well-known/openid-configuration
+      description: Подставьте значения VITE_KEYCLOAK_URL и VITE_KEYCLOAK_REALM.
+
+  parameters:
+    ApplicationId:
+      name: id
+      in: path
+      required: true
+      description: Идентификатор заявки
+      schema:
+        type: string
+        example: "1024"
+
+  schemas:
+    ApplicationStatus:
+      type: string
+      description: Значения совпадают с `ApplicationStatus` во фронтенде.
+      enum:
+        - На модерации
+        - Новые
+        - В обработке
+        - Завершенные
+        - Отклоненные
+
+    Project:
+      type: string
+      enum: [1X, Music, Delivery]
+
+    ApplicationDto:
+      type: object
+      required: [id, title, date, project, status]
+      properties:
+        id:
+          type: string
+          example: "1024"
+        title:
+          type: string
+          example: Не приходит код
+        date:
+          type: string
+          format: date-time
+          description: Дата создания (на фронтенде преобразуется в `Date`)
+        project:
+          $ref: "#/components/schemas/Project"
+        status:
+          $ref: "#/components/schemas/ApplicationStatus"
+        authorId:
+          type: string
+          description: Значение claim `sub` автора из Keycloak
+          example: 3f1c2b9e-6a54-4d0a-9d1e-0c7a1b2d3e4f
+
+    CreateApplicationRequest:
+      type: object
+      required: [title, project]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Текст поля «Описание проблемы»
+        project:
+          $ref: "#/components/schemas/Project"
+
+    UpdateApplicationStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: "#/components/schemas/ApplicationStatus"
+
+    ModerationDecisionRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [approve, reject]
+        comment:
+          type: string
+          maxLength: 1000
+
+    Message:
+      type: object
+      required: [id, applicationId, authorId, senderRole, createdAt]
+      properties:
+        id:
+          type: string
+        applicationId:
+          type: string
+        authorId:
+          type: string
+          description: Значение claim `sub` отправителя
+        senderRole:
+          type: string
+          enum: [user, support]
+          description: Кто написал — пользователь или поддержка
+        text:
+          type: string
+        attachmentName:
+          type: string
+          nullable: true
+        attachmentUrl:
+          type: string
+          format: uri
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    ApiError:
+      type: object
+      required: [statusCode, message]
+      properties:
+        statusCode:
+          type: integer
+          example: 400
+        message:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+        error:
+          type: string
+          example: Bad Request
+
+  responses:
+    BadRequest:
+      description: Некорректный запрос
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Unauthorized:
+      description: Нет токена или он недействителен
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Forbidden:
+      description: Недостаточно прав
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    NotFound:
+      description: Не найдено
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
