@@ -138,6 +138,7 @@ p {
   max-height: 420px;
   box-sizing: border-box;
   overflow-y: auto;
+  cursor: pointer;
 }
 
 .applications-list div,

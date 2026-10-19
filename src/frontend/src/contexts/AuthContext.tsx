@@ -126,7 +126,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (redirectPath: string = "/") => {
     await keycloak.login({
-      action: "register",
       redirectUri: window.location.origin + redirectPath,
     });
   };

@@ -1,10 +1,13 @@
-import { Navigate, replace, Route, Routes } from "react-router-dom";
+import type{
+  Application,
+  ApplicationCategory,
+} from "./types/types";
+import {  Route, Routes } from "react-router-dom";
 import "./App.css";
 import HomePage from "./pages/HomePage";
 import AccountPage from "./pages/AccountPage";
 import Header from "./components/Header";
 import { useState } from "react";
-import type { Application } from "./types/types";
 import CreateApplicationPage from "./pages/CreateApplicationPage";
 import Moderation from "./pages/Moderation";
 
@@ -28,28 +31,40 @@ export const ALL_APPLICATIONS: Application[] = [
     title: "Смена email",
     date: new Date("2026-05-08"),
     project: "Delivery",
-    status: "Мои",
+    status: "Новые",
   },
 ];
 
 function App() {
-  const [currentItems, setCurrentItems] =
-    useState<Application[]>(ALL_APPLICATIONS);
-  const [currentCategories, setCurrentCategories] = useState<string>("all");
-  const [searchValue, setSearchValue] = useState("");
+  
+const [currentItems, setCurrentItems] =
+  useState<Application[]>(ALL_APPLICATIONS);
 
-  const chooseCategories = (category: string) => {
-    setCurrentCategories(category);
+const [currentCategories, setCurrentCategories] =
+  useState<ApplicationCategory>("Все");
 
-    if (category === "Все") {
-      setCurrentItems(ALL_APPLICATIONS);
-      return;
-    }
+const [searchValue, setSearchValue] = useState("");
 
-    setCurrentItems(
-      ALL_APPLICATIONS.filter((item) => item.status === category),
-    );
-  };
+const chooseCategories = (category: ApplicationCategory): void => {
+  setCurrentCategories(category);
+
+  if (category === "Все") {
+    setCurrentItems(ALL_APPLICATIONS);
+    return;
+  }
+
+  // нет привязки к user, пока что выводим 
+  if (category === "Мои") {
+    
+    setCurrentItems(ALL_APPLICATIONS);
+    return;
+  }
+
+  setCurrentItems(
+    ALL_APPLICATIONS.filter((item) => item.status === category),
+  );
+};
+
 
   return (
     <>

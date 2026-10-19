@@ -16,7 +16,7 @@ function Header() {
       </p>
       <ul>
         <li>
-          {user && user.role === "admin" ? (
+          {user && user.roles.includes("admin") ? (
             <Link to="/moderation">Модерация</Link>
           ) : (
             <IoNotificationsOutline size={23} />

@@ -1,14 +1,9 @@
 import React, { useState, type FormEvent } from "react";
-import type { Application } from "../types/types";
+import type { Application, ApplicationForm } from "../types/types";
 import { ALL_APPLICATIONS } from "../App";
 import { toast } from "sonner";
 
 import Chat from "../components/Chat";
-
-interface ApplicationForm {
-  project: string;
-  title: string;
-}
 
 function CreateApplicationPage() {
   const [formValue, setFormValue] = useState<ApplicationForm>({
@@ -56,11 +51,12 @@ function CreateApplicationPage() {
             onChange={handleChange}
             name="project"
             id="project-select"
+            required
           >
-            <option value="">Выберете проект</option>
-            <option value="1x">1X</option>
-            <option value="music">Music</option>
-            <option value="delivery">Delivery</option>
+            <option value="">Выберите проект</option>
+            <option value="1X">1X</option>
+            <option value="Music">Music</option>
+            <option value="Delivery">Delivery</option>
           </select>
           <label>Описание проблемы</label>
           <textarea

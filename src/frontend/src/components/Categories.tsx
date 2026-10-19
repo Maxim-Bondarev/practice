@@ -1,27 +1,26 @@
-import React, { useState } from "react";
-import type { Application } from "../types/types";
+import type { CategoriesProps, ApplicationCategory } from "../types/types";
 
-interface Props {
-  items: Application[];
-  onCategoryChange: (c: string) => void;
-}
+const categories: {
+  key: ApplicationCategory;
+  name: string;
+}[] = [
+  { key: "Все", name: "Все" },
+  { key: "Новые", name: "Новые" },
+  { key: "В обработке", name: "В обработке" },
+  { key: "Завершенные", name: "Завершенные" },
+  { key: "Отклоненные", name: "Отклоненные" },
+  { key: "Мои", name: "Мои" },
+];
 
-function Categories({ items, onCategoryChange }: Props) {
-  const [currentItems, setCurentItems] = useState([]);
-  const categories = [
-    { key: "Все", name: "Все" },
-    { key: "Новые", name: "Новые" },
-    { key: "В обработке", name: "В работе" },
-    { key: "Завершенные", name: "Завершенные" },
-    { key: "Отклоненные", name: "Отклоненные" },
-    { key: "Мои", name: "Мои" },
-  ];
-
+function Categories({ onCategoryChange }: CategoriesProps) {
   return (
     <div className="categories">
-      {categories.map((el) => (
-        <div key={el.key} onClick={() => onCategoryChange(el.key)}>
-          {el.name}
+      {categories.map((category) => (
+        <div
+          key={category.key}
+          onClick={() => onCategoryChange(category.key)}
+        >
+          {category.name}
         </div>
       ))}
     </div>

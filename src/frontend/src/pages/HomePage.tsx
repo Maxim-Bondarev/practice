@@ -1,15 +1,15 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import type { Application } from "../types/types";
+import type { Application, ApplicationCategory } from "../types/types";
 import Categories from "../components/Categories";
 import { IoClose } from "react-icons/io5";
 
 interface Props {
   items: Application[];
   searchValue: string;
-  onCategoryChange: (c: string) => void;
-  onSetSearchValue: (c: string) => void;
+  onCategoryChange: (c: ApplicationCategory) => void;
+  onSetSearchValue: (value: string) => void;
 }
 
 function HomePage({
@@ -46,8 +46,10 @@ function HomePage({
       <Categories items={items} onCategoryChange={onCategoryChange} />
       <div className="applications-list">
         {items
-          .filter((item) =>
-            item.title.toLowerCase().includes(searchValue.toLowerCase()) && item.status !== "На модерации",
+          .filter(
+            (item) =>
+              item.title.toLowerCase().includes(searchValue.toLowerCase()) &&
+              item.status !== "На модерации",
           )
           .map((item) => (
             <div key={item.id}>
