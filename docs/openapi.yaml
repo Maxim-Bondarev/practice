@@ -1,24 +1,72 @@
 openapi: 3.0.3
 info:
   title: Feedback API
-  version: 0.1.0
+  version: 1.0.0
   description: |
-    API системы обращений (заявок) Feedback.
+    Бэкенд сервиса обращений (заявок) с чатом по каждой заявке.
+
+    ## Окружение (docker compose)
+    | Сервис | Адрес снаружи | Внутри docker-сети |
+    |---|---|---|
+    | Frontend | http://localhost:9000 | — |
+    | Backend (этот API) | http://localhost:9100 | http://backend:3000 |
+    | Keycloak | http://localhost:9200 | http://keycloak:8080 |
+    | PostgreSQL | localhost:9300 | postgres:5432 |
+
+    Backend должен разрешить CORS для origin `http://localhost:9000`
+    (методы `GET, POST, PATCH, OPTIONS`, заголовки `Authorization, Content-Type`).
+
+    ## Авторизация
+    Аутентификация через **Keycloak**, realm `practics`, публичный клиент `frontend`
+    (Authorization Code + PKCE). Фронтенд передаёт access-токен в заголовке
+    `Authorization: Bearer <jwt>`. Бэкенд проверяет подпись токена и берёт из него:
+    - `sub` — id пользователя (он же `authorId` заявок и сообщений);
+    - `preferred_username` — имя пользователя (`authorName` сообщений);
+    - роли из `realm_access.roles` — для администратора ожидается роль `admin`.
+
+    **Проверка токена на бэкенде:**
+    - ключи (JWKS) брать по внутреннему адресу:
+      `http://keycloak:8080/realms/practics/protocol/openid-connect/certs`;
+    - `iss` в токене будет **внешним**: `http://localhost:9200/realms/practics`
+      (так настроен `KC_HOSTNAME`/`KC_HOSTNAME_PORT`), именно с ним нужно сверять `iss`;
+    - `aud` у токенов клиента `frontend` может не содержать `backend` — проверять
+      подпись, `iss` и срок действия.
+
+    `authorId`, `authorName` и `isAdmin` **никогда не принимаются от клиента** —
+    сервер всегда берёт их из токена.
+
+    ## Правила доступа
+    | Действие | Кто может |
+    |---|---|
+    | Смотреть список заявок, заявку, чат, скачивать файлы | любой, в том числе без токена |
+    | Создавать заявку | любой авторизованный пользователь |
+    | Писать в чат (текст и файлы) | **автор заявки** и **администратор** (в любой чат) |
+    | Менять статус, модерировать | только администратор |
+
+    ## Видимость заявок «На модерации»
+    Заявка со статусом `На модерации` видна только своему автору и администратору.
+    Для всех остальных она не попадает в списки, а `GET /applications/{id}`,
+    сообщения и файлы такой заявки отвечают `404`.
+    Это правило распространяется на всё, что относится к заявке (чат, файлы).
+
+    ## Формат ошибок
+    Все ошибки возвращаются в виде `ApiError`.
+  contact:
+    name: Frontend team
 
 servers:
-  - url: "{apiUrl}"
-    description: Значение переменной VITE_API_URL
-    variables:
-      apiUrl:
-        default: http://localhost:3000/api
+  - url: http://localhost:9100
+    description: Backend в docker compose (контейнер `practics-backend`, внутри порт 3000)
 
 tags:
   - name: Applications
-    description: Заявки пользователей
+    description: Заявки
   - name: Moderation
-    description: Модерация заявок (роль admin)
+    description: Модерация заявок (только admin)
   - name: Chat
-    description: Чат с поддержкой. У каждой заявки свой отдельный чат
+    description: Чат заявки
+  - name: Files
+    description: Вложения чата
 
 paths:
   /applications:
@@ -27,282 +75,314 @@ paths:
       operationId: listApplications
       summary: Список заявок
       description: |
-        Публичная лента. Заявки со статусом «На модерации» в неё не попадают
-        (главная страница их скрывает). Для `mine=true` нужен токен.
+        Возвращает заявки от новых к старым (по `date`, по убыванию).
+
+        - Без параметра `status` заявки со статусом `На модерации` в список **не попадают**.
+        - `mine=true` возвращает заявки текущего пользователя **включая** `На модерации`
+          (используется на странице аккаунта). Требует токен.
+        - `status=На модерации` без `mine` доступен только администратору (очередь модерации).
       security:
         - {}
-        - bearerAuth: []
+        - keycloak: []
       parameters:
         - name: status
           in: query
-          description: Фильтр по статусу (категории «Новые», «В обработке» и т.д.)
+          description: Фильтр по статусу
           schema:
-            $ref: "#/components/schemas/ApplicationStatus"
+            $ref: '#/components/schemas/ApplicationStatus'
         - name: search
           in: query
-          description: Поиск по заголовку, без учёта регистра
+          description: Поиск по подстроке в `title`, без учёта регистра
           schema:
             type: string
         - name: mine
           in: query
-          description: Только заявки текущего пользователя (категория «Мои»)
+          description: Только заявки текущего пользователя
           schema:
             type: boolean
             default: false
       responses:
-        "200":
+        '200':
           description: Список заявок
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ApplicationDto"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: '#/components/schemas/ApplicationsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
     post:
       tags: [Applications]
       operationId: createApplication
       summary: Создать заявку
-      description: Новая заявка всегда создаётся со статусом «На модерации».
+      description: |
+        Создаёт заявку со статусом `На модерации`. `authorId` берётся из токена,
+        `date` ставится сервером.
       security:
-        - bearerAuth: []
+        - keycloak: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateApplicationRequest"
+              $ref: '#/components/schemas/CreateApplicationRequest'
+            example:
+              title: Не приходит код подтверждения
+              project: 1X
       responses:
-        "201":
+        '201':
           description: Заявка создана
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApplicationDto"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: '#/components/schemas/Application'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /applications/{id}:
     parameters:
-      - $ref: "#/components/parameters/ApplicationId"
+      - $ref: '#/components/parameters/ApplicationId'
     get:
       tags: [Applications]
       operationId: getApplication
-      summary: Получить заявку
+      summary: Получить заявку по id
       description: |
-        Данные для страницы заявки (`/applications/:id`), под которой находится чат.
-        Заявку «На модерации» могут видеть только автор и admin.
+        Заявка `На модерации` возвращается только автору и администратору,
+        остальным — `404`.
       security:
         - {}
-        - bearerAuth: []
+        - keycloak: []
       responses:
-        "200":
+        '200':
           description: Заявка
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApplicationDto"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
+                $ref: '#/components/schemas/Application'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /applications/{id}/status:
     parameters:
-      - $ref: "#/components/parameters/ApplicationId"
+      - $ref: '#/components/parameters/ApplicationId'
     patch:
-      tags: [Applications]
+      tags: [Moderation]
       operationId: updateApplicationStatus
       summary: Изменить статус заявки
-      description: Доступно роли admin.
+      description: Только администратор. Можно выставить любой статус из `ApplicationStatus`.
       security:
-        - bearerAuth: []
+        - keycloak: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateApplicationStatusRequest"
+              $ref: '#/components/schemas/UpdateApplicationStatusRequest'
+            example:
+              status: В обработке
       responses:
-        "200":
-          description: Статус обновлён
+        '200':
+          description: Обновлённая заявка
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApplicationDto"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
+                $ref: '#/components/schemas/Application'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
-  /moderation/applications:
-    get:
-      tags: [Moderation]
-      operationId: listPendingApplications
-      summary: Заявки, ожидающие модерации
-      description: Страница `/moderation`. Возвращает заявки со статусом «На модерации». Роль admin.
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: Список заявок на модерации
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ApplicationDto"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-
-  /moderation/applications/{id}/decision:
+  /applications/{id}/moderation:
     parameters:
-      - $ref: "#/components/parameters/ApplicationId"
+      - $ref: '#/components/parameters/ApplicationId'
     post:
       tags: [Moderation]
       operationId: moderateApplication
-      summary: Одобрить или отклонить заявку
+      summary: Принять решение по заявке на модерации
       description: |
-        `approve` переводит заявку в статус «Новые», `reject` — в «Отклоненные»
-        (как в `Moderation.tsx`). Повторно модерировать уже обработанную заявку нельзя.
+        Только администратор. Работает только для заявки со статусом `На модерации`,
+        иначе `409`.
+
+        - `approve` → статус становится `Новые`;
+        - `reject` → статус становится `Отклоненные`.
+
+        `comment` (необязательно) сохраняется вместе с решением.
+        Текущий фронтенд его не отправляет и не показывает.
       security:
-        - bearerAuth: []
+        - keycloak: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ModerationDecisionRequest"
+              $ref: '#/components/schemas/ModerationDecisionRequest'
+            example:
+              decision: approve
       responses:
-        "200":
-          description: Решение применено
+        '200':
+          description: Заявка с новым статусом
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApplicationDto"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "409":
+                $ref: '#/components/schemas/Application'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
           description: Заявка уже не находится на модерации
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiError"
+                $ref: '#/components/schemas/ApiError'
 
   /applications/{id}/messages:
     parameters:
-      - $ref: "#/components/parameters/ApplicationId"
+      - $ref: '#/components/parameters/ApplicationId'
     get:
       tags: [Chat]
       operationId: listMessages
       summary: Сообщения чата заявки
       description: |
-        Доступно автору заявки и сотрудникам поддержки (admin).
-        Для обновления чата без WebSocket можно опрашивать endpoint с параметром `after`.
+        Читать чат может любой (с учётом правила видимости заявок `На модерации`).
+        Сообщения отсортированы по `createdAt` по возрастанию.
+
+        Для обновления чата фронтенд может опрашивать эндпоинт с параметром `after` —
+        тогда возвращаются только более новые сообщения.
       security:
-        - bearerAuth: []
+        - {}
+        - keycloak: []
       parameters:
         - name: after
           in: query
-          description: Вернуть только сообщения, созданные позже этого момента
+          description: Вернуть только сообщения с `createdAt` строго позже указанного момента
           schema:
             type: string
             format: date-time
       responses:
-        "200":
-          description: Сообщения по возрастанию даты
+        '200':
+          description: Сообщения
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Message"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
+                  $ref: '#/components/schemas/ChatMessage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
     post:
       tags: [Chat]
-      operationId: sendMessage
-      summary: Отправить сообщение в чат заявки
+      operationId: createMessage
+      summary: Отправить сообщение (с файлом или без)
       description: |
-        Текст и/или файл (кнопка-скрепка в `Chat.tsx`). Нужно передать хотя бы одно из полей.
-        Автор заявки пишет как `user`, сотрудник поддержки — как `support`
-        (роль определяется по токену, клиент её не передаёт).
-        В заявке «На модерации», «Завершенные» или «Отклоненные» писать нельзя — 409.
+        Писать могут **только автор заявки и администратор**. Остальным — `403`.
+
+        Запрос — `multipart/form-data`: текст и необязательный файл отправляются
+        одним запросом, поэтому сообщение и вложение создаются атомарно.
+        Должно быть передано хотя бы одно из полей `text` / `file`.
+
+        Сервер сам заполняет `id`, `applicationId`, `authorId`, `authorName`,
+        `isAdmin` (из токена) и `createdAt`.
+
+        Ограничения: `text` — до 2000 символов, `file` — до 10 МБ (иначе `413`).
       security:
-        - bearerAuth: []
+        - keycloak: []
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
-              type: object
-              properties:
-                text:
-                  type: string
-                  maxLength: 4000
-                file:
-                  type: string
-                  format: binary
+              $ref: '#/components/schemas/CreateMessageRequest'
       responses:
-        "201":
+        '201':
           description: Сообщение создано
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Message"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "409":
-          description: Чат закрыт — статус заявки не позволяет писать
+                $ref: '#/components/schemas/ChatMessage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '413':
+          description: Файл больше 10 МБ
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiError"
-        "413":
-          description: Файл слишком большой
-          content:
-            application/json:
+                $ref: '#/components/schemas/ApiError'
+
+  /files/{id}:
+    get:
+      tags: [Files]
+      operationId: downloadFile
+      summary: Скачать вложение
+      description: |
+        `id` — это `attachment.id` из сообщения. Доступ такой же, как к чату заявки,
+        к которой относится файл (для заявки `На модерации` — только автор и админ).
+
+        Рекомендации по безопасности: отдавать заголовок `X-Content-Type-Options: nosniff`;
+        для типов, кроме `image/png`, `image/jpeg`, `image/gif`, `image/webp`,
+        использовать `Content-Disposition: attachment`.
+      security:
+        - {}
+        - keycloak: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Идентификатор вложения (`attachment.id`)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Содержимое файла
+          headers:
+            Content-Disposition:
+              description: Имя файла (`attachment.name`)
               schema:
-                $ref: "#/components/schemas/ApiError"
+                type: string
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
 
 components:
   securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: Access-токен Keycloak (`keycloak.token`).
     keycloak:
-      type: openIdConnect
-      openIdConnectUrl: https://KEYCLOAK_HOST/realms/REALM/.well-known/openid-configuration
-      description: Подставьте значения VITE_KEYCLOAK_URL и VITE_KEYCLOAK_REALM.
+      type: oauth2
+      description: |
+        Access-токен Keycloak (realm `practics`), передаётся как `Authorization: Bearer <jwt>`.
+        Роль администратора — `admin` в `realm_access.roles`.
+      flows:
+        authorizationCode:
+          authorizationUrl: http://localhost:9200/realms/practics/protocol/openid-connect/auth
+          tokenUrl: http://localhost:9200/realms/practics/protocol/openid-connect/token
+          refreshUrl: http://localhost:9200/realms/practics/protocol/openid-connect/token
+          scopes:
+            openid: Базовый scope OpenID Connect
 
   parameters:
     ApplicationId:
@@ -312,12 +392,11 @@ components:
       description: Идентификатор заявки
       schema:
         type: string
-        example: "1024"
+        example: '1025'
 
   schemas:
     ApplicationStatus:
       type: string
-      description: Значения совпадают с `ApplicationStatus` во фронтенде.
       enum:
         - На модерации
         - Новые
@@ -329,28 +408,33 @@ components:
       type: string
       enum: [1X, Music, Delivery]
 
-    ApplicationDto:
+    Application:
       type: object
-      required: [id, title, date, project, status]
+      required: [id, title, date, project, status, authorId]
       properties:
         id:
           type: string
-          example: "1024"
+          example: '1025'
         title:
           type: string
-          example: Не приходит код
+          description: Описание проблемы
+          example: Не приходит код подтверждения
         date:
           type: string
           format: date-time
-          description: Дата создания (на фронтенде преобразуется в `Date`)
+          description: Дата создания (ставится сервером)
         project:
-          $ref: "#/components/schemas/Project"
+          $ref: '#/components/schemas/Project'
         status:
-          $ref: "#/components/schemas/ApplicationStatus"
+          $ref: '#/components/schemas/ApplicationStatus'
         authorId:
           type: string
-          description: Значение claim `sub` автора из Keycloak
-          example: 3f1c2b9e-6a54-4d0a-9d1e-0c7a1b2d3e4f
+          description: Id пользователя Keycloak (`sub`), создавшего заявку
+
+    ApplicationsResponse:
+      type: array
+      items:
+        $ref: '#/components/schemas/Application'
 
     CreateApplicationRequest:
       type: object
@@ -359,17 +443,16 @@ components:
         title:
           type: string
           minLength: 1
-          maxLength: 2000
-          description: Текст поля «Описание проблемы»
+          maxLength: 1000
         project:
-          $ref: "#/components/schemas/Project"
+          $ref: '#/components/schemas/Project'
 
     UpdateApplicationStatusRequest:
       type: object
       required: [status]
       properties:
         status:
-          $ref: "#/components/schemas/ApplicationStatus"
+          $ref: '#/components/schemas/ApplicationStatus'
 
     ModerationDecisionRequest:
       type: object
@@ -382,33 +465,70 @@ components:
           type: string
           maxLength: 1000
 
-    Message:
+    ChatAttachment:
       type: object
-      required: [id, applicationId, authorId, senderRole, createdAt]
+      description: Метаданные вложения; сам файл скачивается через `GET /files/{id}`
+      required: [id, name, size, type]
       properties:
         id:
           type: string
+          format: uuid
+        name:
+          type: string
+          description: Исходное имя файла
+          example: error.png
+        size:
+          type: integer
+          description: Размер в байтах
+          example: 184320
+        type:
+          type: string
+          description: MIME-тип
+          example: image/png
+
+    ChatMessage:
+      type: object
+      required: [id, applicationId, authorId, authorName, text, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
         applicationId:
           type: string
+          example: '1025'
         authorId:
           type: string
-          description: Значение claim `sub` отправителя
-        senderRole:
+          description: Id пользователя Keycloak (`sub`)
+        authorName:
           type: string
-          enum: [user, support]
-          description: Кто написал — пользователь или поддержка
+          description: Имя пользователя (`preferred_username`) на момент отправки
+        isAdmin:
+          type: boolean
+          description: Сообщение написано администратором (в интерфейсе подписывается «Поддержка»)
         text:
           type: string
-        attachmentName:
-          type: string
-          nullable: true
-        attachmentUrl:
-          type: string
-          format: uri
-          nullable: true
+          maxLength: 2000
+          description: Текст; может быть пустой строкой, если приложен файл
+        attachment:
+          $ref: '#/components/schemas/ChatAttachment'
         createdAt:
           type: string
           format: date-time
+
+    CreateMessageRequest:
+      type: object
+      description: Нужно передать `text`, `file` или оба поля
+      anyOf:
+        - required: [text]
+        - required: [file]
+      properties:
+        text:
+          type: string
+          maxLength: 2000
+        file:
+          type: string
+          format: binary
+          description: Файл до 10 МБ
 
     ApiError:
       type: object
@@ -429,26 +549,26 @@ components:
 
   responses:
     BadRequest:
-      description: Некорректный запрос
+      description: Некорректный запрос (ошибка валидации)
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ApiError"
+            $ref: '#/components/schemas/ApiError'
     Unauthorized:
       description: Нет токена или он недействителен
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ApiError"
+            $ref: '#/components/schemas/ApiError'
     Forbidden:
       description: Недостаточно прав
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ApiError"
+            $ref: '#/components/schemas/ApiError'
     NotFound:
-      description: Не найдено
+      description: Не найдено (в том числе заявка на модерации, скрытая от текущего пользователя)
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ApiError"
+            $ref: '#/components/schemas/ApiError'
