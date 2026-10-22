@@ -29,7 +29,6 @@ function formatTime(iso: string): string {
   });
 }
 
-
 function Chat({ application }: ChatProps) {
   const { user, authenticated } = useAuth();
   const messages = useChatMessages(application.id);
@@ -50,7 +49,7 @@ function Chat({ application }: ChatProps) {
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const picked = e.target.files?.[0];
-    e.target.value = ""; 
+    e.target.value = "";
     if (!picked) return;
 
     if (picked.size > MAX_FILE_SIZE) {
@@ -153,6 +152,7 @@ function Chat({ application }: ChatProps) {
               type="button"
               className="icon_btn"
               onClick={() => fileInputRef.current?.click()}
+              title="Выбрать файл"
             >
               <GoPaperclip size={24} />
             </button>
@@ -168,6 +168,7 @@ function Chat({ application }: ChatProps) {
               type="submit"
               className="icon_btn send_btn"
               disabled={sending}
+              title="Отправить"
             >
               <VscSend size={24} />
             </button>

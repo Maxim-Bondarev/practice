@@ -24,20 +24,27 @@ function AccountPage() {
           navigate("/");
         }}
       >
-        <FaArrowLeftLong size={11.5}/>Вернуться на главную
+        <FaArrowLeftLong size={11.5} />
+        Вернуться на главную
       </button>
       <div className="user_info">
-        <p><span>Имя пользователя: </span>{user.username}</p>
-        <p><span>Почта: </span>{user.email}</p>
         <p>
-          <span>Имя: </span>{user.firstName} {user.lastName}
+          <span>Имя пользователя: </span>
+          {user.username}
         </p>
-
-        <p>{user.role}</p>
-
+        <p>
+          <span>Почта: </span>
+          {user.email}
+        </p>
+        <p>
+          <span>Имя: </span>
+          {user.firstName} {user.lastName}
+        </p>
       </div>
       <div className="application_history">
-        <label className="history_label">История заявок: <span>{myApplications.length} шт</span></label>
+        <label className="history_label">
+          История заявок: <span>{myApplications.length} шт</span>
+        </label>
         {myApplications.map((item) => (
           <Link key={item.id} to={`/applications/${item.id}`}>
             <div>
@@ -49,7 +56,7 @@ function AccountPage() {
         ))}
       </div>
       <div className="logout">
-        <button onClick={()=>logout()}>Выйти из аккаунта</button>
+        <button onClick={() => logout()}>Выйти из аккаунта</button>
       </div>
     </div>
   );
