@@ -12,12 +12,13 @@ const categories: {
   { key: "Мои", name: "Мои" },
 ];
 
-function Categories({ onCategoryChange }: CategoriesProps) {
+function Categories({ current, onCategoryChange }: CategoriesProps) {
   return (
     <div className="categories">
       {categories.map((category) => (
         <div
           key={category.key}
+          className={current === category.key ? "active" : undefined}
           onClick={() => onCategoryChange(category.key)}
         >
           {category.name}

@@ -1,11 +1,14 @@
 import React, { useState, type FormEvent } from "react";
-import type { Application, ApplicationForm } from "../types/types";
-import { ALL_APPLICATIONS } from "../App";
+import { useNavigate } from "react-router-dom";
+import type { ApplicationForm, Project } from "../types/types";
 import { toast } from "sonner";
-
-import Chat from "../components/Chat";
+import { useAuth } from "../contexts/AuthContext";
+import { createApplication } from "../storage/db";
 
 function CreateApplicationPage() {
+  const { initialized, authenticated, user, login } = useAuth();
+  const navigate = useNavigate();
+
   const [formValue, setFormValue] = useState<ApplicationForm>({
     title: "",
     project: "",
@@ -20,23 +23,42 @@ function CreateApplicationPage() {
     setFormValue((prev) => ({ ...prev, [name]: value }));
   };
 
+  if (!initialized) return null;
+
+  if (!authenticated || !user) {
+    return (
+      <div className="create-application-page">
+        <h1>Оформление заявки</h1>
+        <p>Чтобы оставить заявку, нужно войти в аккаунт</p>
+        <div className="form-block">
+          <button onClick={() => login("/create-application")}>Войти</button>
+        </div>
+      </div>
+    );
+  }
+
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const newApplication: Application = {
-      id: new Date().toString(),
-      title: formValue.title,
-      date: new Date(),
-      project: formValue.project,
-      status: "На модерации",
-    };
-    console.log(formValue);
-    ALL_APPLICATIONS.push(newApplication);
-    setFormValue({ title: "", project: "" });
+    if (!formValue.project || !formValue.title.trim()) return;
 
+    const created = createApplication({
+      title: formValue.title,
+      project: formValue.project as Project,
+      authorId: user.id,
+    });
+
+    if (!created) {
+      toast.error("Не удалось сохранить заявку");
+      return;
+    }
+
+    setFormValue({ title: "", project: "" });
     toast.success("Успешно", {
       description: "Заявка успешно отправлена",
     });
+
+    navigate(`/applications/${created.id}`);
   };
 
   return (
@@ -64,11 +86,11 @@ function CreateApplicationPage() {
             onChange={handleChange}
             name="title"
             placeholder="Опишите проблему"
+            required
           />
-          <button type="submit">Оставить заявку</button>
+          <button type="submit" onClick={()=> navigate("/")}>Оставить заявку</button>
         </form>
       </div>
-      <Chat />
     </div>
   );
 }

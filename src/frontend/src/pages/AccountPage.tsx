@@ -1,21 +1,21 @@
-import React from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { FaArrowLeftLong } from "react-icons/fa6";
 
-import { ALL_APPLICATIONS } from "../App";
-import type { Application } from "../types/types";
+import { useApplications } from "../storage/hooks";
 
 function AccountPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const applications = useApplications();
+
   if (!user) {
     return;
   }
 
-  function count_application(applications: Application[]): number {
-    return applications.filter(item => item.status.includes("Мои")).length
-  }
+  const myApplications = applications
+    .filter((item) => item.authorId === user.id)
+    .sort((a, b) => b.date.getTime() - a.date.getTime());
 
   return (
     <div className="account_page">
@@ -34,19 +34,19 @@ function AccountPage() {
         </p>
 
         <p>{user.role}</p>
-        
+
       </div>
       <div className="application_history">
-        <label className="history_label">История заявок: <span>{count_application(ALL_APPLICATIONS)} шт</span></label>
-        {ALL_APPLICATIONS.filter((item) => item.status.includes("Мои")).map(
-          (item) => (
-            <div key={item.id}>
+        <label className="history_label">История заявок: <span>{myApplications.length} шт</span></label>
+        {myApplications.map((item) => (
+          <Link key={item.id} to={`/applications/${item.id}`}>
+            <div>
               <h1>{item.title}</h1>
               <span className="status">{item.status}</span>
               <span>{item.date.toLocaleDateString()}</span>
             </div>
-          ),
-        )}
+          </Link>
+        ))}
       </div>
       <div className="logout">
         <button onClick={()=>logout()}>Выйти из аккаунта</button>

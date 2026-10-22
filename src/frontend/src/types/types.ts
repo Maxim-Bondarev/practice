@@ -23,9 +23,24 @@ export interface Application {
   date: Date;
   project: Project | "";
   status: ApplicationStatus;
-  authorId?: string;
+  authorId: string;
 }
-
+export interface ChatAttachment {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+}
+export interface ChatMessage {
+  id: string;
+  applicationId: string;
+  authorId: string;
+  authorName: string;
+  isAdmin?: boolean;
+  text: string;
+  attachment?: ChatAttachment;
+  createdAt: string;
+}
 export type Project = "1X" | "Music" | "Delivery";
 
 export interface ApplicationForm {
@@ -68,6 +83,7 @@ export interface HomePageProps {
 
 export interface CategoriesProps {
   items: Application[];
+  current?: ApplicationCategory;
   onCategoryChange: (category: ApplicationCategory) => void;
 }
 

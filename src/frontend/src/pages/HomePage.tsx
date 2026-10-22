@@ -7,6 +7,7 @@ import { IoClose } from "react-icons/io5";
 
 interface Props {
   items: Application[];
+  category: ApplicationCategory;   
   searchValue: string;
   onCategoryChange: (c: ApplicationCategory) => void;
   onSetSearchValue: (value: string) => void;
@@ -14,6 +15,7 @@ interface Props {
 
 function HomePage({
   items,
+  category,                        
   searchValue,
   onSetSearchValue,
   onCategoryChange,
@@ -43,7 +45,7 @@ function HomePage({
           onClick={() => onSetSearchValue("")}
         />
       </div>
-      <Categories items={items} onCategoryChange={onCategoryChange} />
+      <Categories items={items} current={category} onCategoryChange={onCategoryChange} />
       <div className="applications-list">
         {items
           .filter(
@@ -52,11 +54,13 @@ function HomePage({
               item.status !== "На модерации",
           )
           .map((item) => (
-            <div key={item.id}>
-              <h1>{item.title}</h1>
-              <span className="status">{item.status}</span>
-              <span>{item.date.toLocaleDateString()}</span>
-            </div>
+            <Link key={item.id} to={`applications/${item.id}`}>
+              <div key={item.id}>
+                <h1>{item.title}</h1>
+                <span className="status">{item.status}</span>
+                <span>{item.date.toLocaleDateString()}</span>
+              </div>
+            </Link>
           ))}
       </div>
       {authenticated ? (

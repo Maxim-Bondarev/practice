@@ -1,37 +1,20 @@
-import React, { useEffect, useState } from "react";
-
-import { ALL_APPLICATIONS } from "../App";
-import type { Application } from "../types/types";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
+
+import { useApplications } from "../storage/hooks";
+import { setApplicationStatus } from "../storage/db";
 
 function Moderation() {
-  const [applications, setApplications] = useState<Application[]>([
-    ...ALL_APPLICATIONS,
-  ]);
-
-  useEffect(() =>{
-    console.log(applications);
-    
-  }, [applications])
+  const applications = useApplications();
 
   const handleAccept = (id: string) => {
-    setApplications((prevApps) =>
-      prevApps.map((el) => (el.id === id ? { ...el, status: "Новые" } : el)),
-    );
-
+    setApplicationStatus(id, "Новые");
     toast.success("Заявка успешно одобрена");
-    console.log(applications);
   };
 
   const handleCancle = (id: string) => {
-    setApplications((prevApps) =>
-      prevApps.map((el) =>
-        el.id === id ? { ...el, status: "Отклоненные" } : el,
-      ),
-    );
-
+    setApplicationStatus(id, "Отклоненные");
     toast.success("Заявка успешно отклонена");
-    console.log(applications);
   };
 
   const pendingApps = applications.filter(
@@ -43,7 +26,9 @@ function Moderation() {
       <h1>Список поданных заявок</h1>
       {pendingApps.map((item) => (
         <div key={item.id}>
-          <h1>{item.title}</h1>
+          <Link to={`/applications/${item.id}`}>
+            <h1>{item.title}</h1>
+          </Link>
           <span className="status">{item.status}</span>
           <span>{item.date.toLocaleDateString()}</span>
           <button onClick={() => handleAccept(item.id)}>Одобрить 👍</button>
