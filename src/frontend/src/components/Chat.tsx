@@ -10,46 +10,108 @@ import { VscSend } from "react-icons/vsc";
 import { IoClose } from "react-icons/io5";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
-import { useChatMessages } from "../storage/hooks";
-import { addMessage, MAX_MESSAGE_LENGTH } from "../storage/db";
+import { useChatItems } from "../storage/hooks";
+import { addMessage, MAX_MESSAGE_LENGTH, newId } from "../storage/db";
 import { deleteFile, MAX_FILE_SIZE, saveFile } from "../storage/file";
-import type { Application, ChatAttachment } from "../types/types";
+import type {
+  Application,
+  ChatAttachment,
+  ChatMessage,
+  StatusEvent,
+} from "../types/types";
+import { formatDateTime, formatMessageTime } from "../utils/format";
 import Attachment from "./Attachment";
 
 interface ChatProps {
   application: Application;
 }
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleString("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function StatusLine({ item }: { item: StatusEvent }) {
+  if (item.previousStatus === undefined) {
+    return (
+      <div className="timeline_event">
+        Заявка открыта: {formatDateTime(item.createdAt)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="timeline_event">
+      <span>{item.authorName} изменил(а) статус</span>
+      <span className="status_pill" data-status={item.previousStatus}>
+        {item.previousStatus}
+      </span>
+      <span>→</span>
+      <span className="status_pill" data-status={item.status}>
+        {item.status}
+      </span>
+      <span className="timeline_time">{formatDateTime(item.createdAt)}</span>
+    </div>
+  );
 }
+
+function MessageBubble({
+  message,
+  own,
+}: {
+  message: ChatMessage;
+  own: boolean;
+}) {
+  return (
+    <div className={own ? "message own" : "message"}>
+      <span className="message_author">
+        {message.isAdmin ? `Поддержка · ${message.authorName}` : message.authorName}
+      </span>
+      {message.text && <p className="message_text">{message.text}</p>}
+      {message.attachment && <Attachment attachment={message.attachment} />}
+      <span className="message_time">{formatMessageTime(message.createdAt)}</span>
+    </div>
+  );
+}
+
 
 function Chat({ application }: ChatProps) {
   const { user, authenticated } = useAuth();
-  const messages = useChatMessages(application.id);
+  const items = useChatItems(application.id);
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const windowRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
 
   const isAdmin = !!user && user.roles.includes("admin");
   const canWrite = !!user && (isAdmin || user.id === application.authorId);
+  const hasMessages = items.some((i) => i.type === "message");
 
+  
   useEffect(() => {
-    const el = windowRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length]);
+    const win = windowRef.current;
+    const content = contentRef.current;
+    if (!win || !content) return;
+
+    const toBottom = () => {
+      if (stickToBottomRef.current) win.scrollTop = win.scrollHeight;
+    };
+
+    const observer = new ResizeObserver(toBottom);
+    observer.observe(content);
+    toBottom();
+    return () => observer.disconnect();
+  }, []);
+
+  const handleScroll = () => {
+    const win = windowRef.current;
+    if (!win) return;
+    stickToBottomRef.current =
+      win.scrollHeight - win.scrollTop - win.clientHeight < 80;
+  };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const picked = e.target.files?.[0];
-    e.target.value = "";
+    e.target.value = ""; 
     if (!picked) return;
 
     if (picked.size > MAX_FILE_SIZE) {
@@ -68,7 +130,7 @@ function Chat({ application }: ChatProps) {
     try {
       let attachment: ChatAttachment | undefined;
       if (file) {
-        const id = crypto.randomUUID();
+        const id = newId();
         await saveFile(id, file);
         attachment = {
           id,
@@ -80,9 +142,7 @@ function Chat({ application }: ChatProps) {
 
       const saved = addMessage({
         applicationId: application.id,
-        authorId: user.id,
-        authorName: user.username,
-        isAdmin,
+        author: { id: user.id, name: user.username, isAdmin },
         text,
         attachment,
       });
@@ -93,6 +153,7 @@ function Chat({ application }: ChatProps) {
         return;
       }
 
+      stickToBottomRef.current = true; 
       setText("");
       setFile(null);
     } catch (err) {
@@ -105,23 +166,21 @@ function Chat({ application }: ChatProps) {
 
   return (
     <div className="chat">
-      <div className="window_chat" ref={windowRef}>
-        {messages.length === 0 && (
-          <p className="chat_empty">Сообщений пока нет</p>
-        )}
-        {messages.map((m) => {
-          const own = !!user && m.authorId === user.id;
-          return (
-            <div key={m.id} className={own ? "message own" : "message"}>
-              <span className="message_author">
-                {m.isAdmin ? `Поддержка · ${m.authorName}` : m.authorName}
-              </span>
-              {m.text && <p className="message_text">{m.text}</p>}
-              {m.attachment && <Attachment attachment={m.attachment} />}
-              <span className="message_time">{formatTime(m.createdAt)}</span>
-            </div>
-          );
-        })}
+      <div className="window_chat" ref={windowRef} onScroll={handleScroll}>
+        <div className="chat_content" ref={contentRef}>
+          {items.map((item) =>
+            item.type === "status" ? (
+              <StatusLine key={item.id} item={item} />
+            ) : (
+              <MessageBubble
+                key={item.id}
+                message={item}
+                own={!!user && item.authorId === user.id}
+              />
+            ),
+          )}
+          {!hasMessages && <p className="chat_empty">Сообщений пока нет</p>}
+        </div>
       </div>
 
       {canWrite ? (
@@ -152,7 +211,6 @@ function Chat({ application }: ChatProps) {
               type="button"
               className="icon_btn"
               onClick={() => fileInputRef.current?.click()}
-              title="Выбрать файл"
             >
               <GoPaperclip size={24} />
             </button>
@@ -168,7 +226,6 @@ function Chat({ application }: ChatProps) {
               type="submit"
               className="icon_btn send_btn"
               disabled={sending}
-              title="Отправить"
             >
               <VscSend size={24} />
             </button>

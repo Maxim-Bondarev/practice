@@ -1,9 +1,8 @@
-import React from "react";
 import { MdOutlineFeedback } from "react-icons/md";
-import { IoNotificationsOutline } from "react-icons/io5";
 import { FaRegUser } from "react-icons/fa";
 import { useAuth } from "../contexts/AuthContext";
 import { Link } from "react-router-dom";
+import NotificationsBell from "./NotificationsBell";
 
 function Header() {
   const { authenticated, user, login } = useAuth();
@@ -15,21 +14,15 @@ function Header() {
         </Link>
       </p>
       <ul>
-        <li>
-          {user && user.roles.includes("admin") ? (
-            <Link to="/moderation">Модерация</Link>
-          ) : (
-            <IoNotificationsOutline size={23} />
-          )}
-        </li>
+        {authenticated && <NotificationsBell />}
         <li>
           {authenticated ? (
             <Link to="/account">
-              <FaRegUser size={23} /> {user?.username}
+              <FaRegUser size={20} /> {user?.username}
             </Link>
           ) : (
             <Link to="/register" onClick={() => login("/")}>
-              <FaRegUser size={23} /> Войти
+              <FaRegUser size={20} /> Войти
             </Link>
           )}
         </li>

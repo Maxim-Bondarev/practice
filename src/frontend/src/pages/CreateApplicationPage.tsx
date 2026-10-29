@@ -45,7 +45,7 @@ function CreateApplicationPage() {
     const created = createApplication({
       title: formValue.title,
       project: formValue.project as Project,
-      authorId: user.id,
+      author: { id: user.id, name: user.username },
     });
 
     if (!created) {
@@ -88,7 +88,7 @@ function CreateApplicationPage() {
             placeholder="Опишите проблему"
             required
           />
-          <button type="submit" onClick={()=> navigate("/")}>Оставить заявку</button>
+          <button type="submit">Оставить заявку</button>
         </form>
       </div>
     </div>

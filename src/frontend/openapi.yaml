@@ -1,0 +1,751 @@
+openapi: 3.0.3
+info:
+  title: Feedback API
+  version: 2.0.0
+  description: |
+    Бэкенд сервиса обращений (заявок) с чатом по каждой заявке.
+
+    ## Что изменилось в 2.0
+    - **Модерации нет.** Заявка сразу попадает в общий список со статусом `Открыта`.
+    - Статусы: `Открыта` → `В обработке` → `Закрыта` (см. «Смена статуса»).
+    - Чат — это единая лента (`ChatItem`): сообщения и события смены статуса.
+      Первым элементом ленты всегда идёт событие «Заявка открыта».
+    - В заявке есть автор, количество сообщений и дата последнего сообщения.
+    - Фильтры по проекту и статусам, сортировка.
+    - Уведомления для автора заявки и для администраторов.
+
+    ## Окружение (docker compose)
+    | Сервис | Адрес снаружи | Внутри docker-сети |
+    |---|---|---|
+    | Frontend | http://localhost:9000 | — |
+    | Backend (этот API) | http://localhost:9100 | http://backend:3000 |
+    | Keycloak | http://localhost:9200 | http://keycloak:8080 |
+    | PostgreSQL | localhost:9300 | postgres:5432 |
+
+    Backend должен разрешить CORS для origin `http://localhost:9000`
+    (методы `GET, POST, PATCH, OPTIONS`, заголовки `Authorization, Content-Type`).
+
+    ## Авторизация
+    Аутентификация через **Keycloak**, realm `practics`, публичный клиент `frontend`
+    (Authorization Code + PKCE). Фронтенд передаёт access-токен в заголовке
+    `Authorization: Bearer <jwt>`. Бэкенд проверяет подпись токена и берёт из него:
+    - `sub` — id пользователя (он же `authorId` заявок, сообщений и событий);
+    - `preferred_username` — имя пользователя (`authorName`);
+    - роли из `realm_access.roles` — для администратора ожидается роль `admin`.
+
+    **Проверка токена на бэкенде:**
+    - ключи (JWKS) брать по внутреннему адресу:
+      `http://keycloak:8080/realms/practics/protocol/openid-connect/certs`;
+    - `iss` в токене будет **внешним**: `http://localhost:9200/realms/practics`
+      (так настроен `KC_HOSTNAME`/`KC_HOSTNAME_PORT`), именно с ним нужно сверять `iss`;
+    - `aud` у токенов клиента `frontend` может не содержать `backend` — проверять
+      подпись, `iss` и срок действия.
+
+    `authorId`, `authorName` и `isAdmin` **никогда не принимаются от клиента** —
+    сервер всегда берёт их из токена.
+
+    ## Правила доступа
+    | Действие | Кто может |
+    |---|---|
+    | Смотреть список заявок, заявку, чат, скачивать файлы | любой, в том числе без токена |
+    | Создавать заявку | любой авторизованный пользователь |
+    | Писать в чат (текст и файлы) | **автор заявки** и **администратор** (в любой чат) |
+    | Менять статус | автор и администратор, в пределах таблицы ниже |
+    | Уведомления | авторизованный пользователь, только свои |
+
+    ## Смена статуса
+    | Из статуса | Автор заявки может перевести в | Администратор может перевести в |
+    |---|---|---|
+    | `Открыта` | `Закрыта` | `В обработке`, `Закрыта` |
+    | `В обработке` | `Закрыта` | `Открыта`, `Закрыта` |
+    | `Закрыта` | `Открыта` (повторное открытие) | `Открыта`, `В обработке` |
+
+    Если пользователь одновременно автор и администратор, права складываются.
+    Каждая смена статуса добавляет в ленту чата событие `StatusEvent`.
+
+    ## Формат ошибок
+    Все ошибки возвращаются в виде `ApiError`.
+  contact:
+    name: Frontend team
+
+servers:
+  - url: http://localhost:9100
+    description: Backend в docker compose (контейнер `practics-backend`, внутри порт 3000)
+
+tags:
+  - name: Applications
+    description: Заявки и их статусы
+  - name: Chat
+    description: Лента чата заявки (сообщения и смены статуса)
+  - name: Files
+    description: Вложения чата
+  - name: Notifications
+    description: Уведомления текущего пользователя
+
+paths:
+  /applications:
+    get:
+      tags: [Applications]
+      operationId: listApplications
+      summary: Список заявок
+      description: |
+        Возвращает заявки с учётом фильтров. Без фильтров — все заявки, включая закрытые.
+        Фронтенд по умолчанию запрашивает «актуальные»:
+        `status=Открыта&status=В обработке`.
+
+        `mine=true` возвращает только заявки текущего пользователя (нужен токен).
+        `search` ищет по подстроке в заголовке, имени автора и номере заявки,
+        без учёта регистра.
+      security:
+        - {}
+        - keycloak: []
+      parameters:
+        - name: status
+          in: query
+          description: Фильтр по статусам. Параметр можно повторять; заявка подходит, если её статус входит в список
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/ApplicationStatus'
+          style: form
+          explode: true
+        - name: project
+          in: query
+          description: Фильтр по проекту
+          schema:
+            $ref: '#/components/schemas/Project'
+        - name: search
+          in: query
+          description: Поиск по заголовку, автору и номеру
+          schema:
+            type: string
+        - name: mine
+          in: query
+          description: Только заявки текущего пользователя
+          schema:
+            type: boolean
+            default: false
+        - name: sort
+          in: query
+          description: Сортировка (по умолчанию `newest`)
+          schema:
+            $ref: '#/components/schemas/ApplicationSort'
+      responses:
+        '200':
+          description: Список заявок
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Application'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Applications]
+      operationId: createApplication
+      summary: Создать заявку
+      description: |
+        Создаёт заявку со статусом `Открыта`. `authorId` и `authorName` берутся из токена,
+        `date` ставится сервером. Одновременно сервер создаёт первое событие ленты чата
+        (`StatusEvent` без `previousStatus`) — «Заявка открыта».
+        Администраторам создаётся уведомление.
+      security:
+        - keycloak: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApplicationRequest'
+            example:
+              title: Не приходит код подтверждения
+              project: 1X
+      responses:
+        '201':
+          description: Заявка создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /applications/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ApplicationId'
+    get:
+      tags: [Applications]
+      operationId: getApplication
+      summary: Получить заявку по id
+      security:
+        - {}
+        - keycloak: []
+      responses:
+        '200':
+          description: Заявка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /applications/{id}/status:
+    parameters:
+      - $ref: '#/components/parameters/ApplicationId'
+    patch:
+      tags: [Applications]
+      operationId: changeApplicationStatus
+      summary: Изменить статус заявки
+      description: |
+        Допустимые переходы зависят от роли — см. таблицу «Смена статуса» в описании API.
+        При успехе в ленту чата добавляется `StatusEvent` (с `previousStatus`),
+        а второй стороне (автору или администраторам) создаётся уведомление.
+      security:
+        - keycloak: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeStatusRequest'
+            example:
+              status: Закрыта
+      responses:
+        '200':
+          description: Обновлённая заявка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Пользователь не автор и не админ, либо такой переход ему запрещён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Заявка уже находится в этом статусе
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /applications/{id}/chat:
+    parameters:
+      - $ref: '#/components/parameters/ApplicationId'
+    get:
+      tags: [Chat]
+      operationId: listChat
+      summary: Лента чата заявки
+      description: |
+        Читать чат может любой. Лента отсортирована по `createdAt` по возрастанию и содержит
+        сообщения (`type = message`) и смены статуса (`type = status`).
+        Первый элемент всегда — событие «Заявка открыта» (`type = status`, без `previousStatus`).
+
+        Для обновления фронтенд может опрашивать эндпоинт с параметром `after` —
+        тогда возвращаются только более новые элементы.
+      security:
+        - {}
+        - keycloak: []
+      parameters:
+        - name: after
+          in: query
+          description: Вернуть только элементы с `createdAt` строго позже указанного момента
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Лента
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /applications/{id}/chat/messages:
+    parameters:
+      - $ref: '#/components/parameters/ApplicationId'
+    post:
+      tags: [Chat]
+      operationId: createMessage
+      summary: Отправить сообщение (с файлом или без)
+      description: |
+        Писать могут **только автор заявки и администратор**. Остальным — `403`.
+
+        Запрос — `multipart/form-data`: текст и необязательный файл отправляются
+        одним запросом, поэтому сообщение и вложение создаются атомарно.
+        Должно быть передано хотя бы одно из полей `text` / `file`.
+
+        Сервер сам заполняет `id`, `applicationId`, `authorId`, `authorName`,
+        `isAdmin` (из токена) и `createdAt`. Второй стороне создаётся уведомление.
+
+        Ограничения: `text` — до 2000 символов, `file` — до 10 МБ (иначе `413`).
+      security:
+        - keycloak: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateMessageRequest'
+      responses:
+        '201':
+          description: Сообщение создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '413':
+          description: Файл больше 10 МБ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /files/{id}:
+    get:
+      tags: [Files]
+      operationId: downloadFile
+      summary: Скачать вложение
+      description: |
+        `id` — это `attachment.id` из сообщения. Доступ такой же, как к чату заявки.
+
+        Рекомендации по безопасности: отдавать заголовок `X-Content-Type-Options: nosniff`;
+        для типов, кроме `image/png`, `image/jpeg`, `image/gif`, `image/webp`,
+        использовать `Content-Disposition: attachment`.
+      security:
+        - {}
+        - keycloak: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Идентификатор вложения (`attachment.id`)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Содержимое файла
+          headers:
+            Content-Disposition:
+              description: Имя файла (`attachment.name`)
+              schema:
+                type: string
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      operationId: listNotifications
+      summary: Уведомления текущего пользователя
+      description: |
+        Уведомления создаются **о действиях других людей**, о своих действиях — нет.
+
+        - **Автору заявки** — сообщения и смены статуса в его заявках.
+        - **Администратору** — новые заявки, а также сообщения и смены статуса в любых заявках.
+
+        Уведомления создаются только для событий, произошедших после первого входа
+        пользователя в систему. Отсортированы от новых к старым.
+      security:
+        - keycloak: []
+      parameters:
+        - name: unreadOnly
+          in: query
+          description: Вернуть только непрочитанные
+          schema:
+            type: boolean
+            default: false
+        - name: limit
+          in: query
+          description: Максимум элементов в ответе
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 30
+      responses:
+        '200':
+          description: Уведомления
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /notifications/read:
+    post:
+      tags: [Notifications]
+      operationId: markNotificationsRead
+      summary: Отметить уведомления прочитанными
+      description: Передайте `ids` нужных уведомлений либо `all = true` для всех.
+      security:
+        - keycloak: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarkReadRequest'
+      responses:
+        '204':
+          description: Отмечено
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    keycloak:
+      type: oauth2
+      description: |
+        Access-токен Keycloak (realm `practics`), передаётся как `Authorization: Bearer <jwt>`.
+        Роль администратора — `admin` в `realm_access.roles`.
+      flows:
+        authorizationCode:
+          authorizationUrl: http://localhost:9200/realms/practics/protocol/openid-connect/auth
+          tokenUrl: http://localhost:9200/realms/practics/protocol/openid-connect/token
+          refreshUrl: http://localhost:9200/realms/practics/protocol/openid-connect/token
+          scopes:
+            openid: Базовый scope OpenID Connect
+
+  parameters:
+    ApplicationId:
+      name: id
+      in: path
+      required: true
+      description: Идентификатор заявки
+      schema:
+        type: string
+        example: '1025'
+
+  schemas:
+    ApplicationStatus:
+      type: string
+      description: Открыта — создана и ждёт действий; В обработке — взята в работу; Закрыта — решена или отклонена
+      enum:
+        - Открыта
+        - В обработке
+        - Закрыта
+
+    Project:
+      type: string
+      enum: [1X, Music, Delivery]
+
+    ApplicationSort:
+      type: string
+      description: newest — по дате создания, новые сверху; oldest — старые сверху; activity — по дате последнего сообщения (если сообщений нет — по дате создания)
+      enum: [newest, oldest, activity]
+
+    Application:
+      type: object
+      required:
+        - id
+        - title
+        - date
+        - project
+        - status
+        - authorId
+        - authorName
+        - messagesCount
+        - lastMessageAt
+      properties:
+        id:
+          type: string
+          example: '1025'
+        title:
+          type: string
+          description: Описание проблемы
+          example: Не приходит код подтверждения
+        date:
+          type: string
+          format: date-time
+          description: Дата создания (ставится сервером)
+        project:
+          $ref: '#/components/schemas/Project'
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        authorId:
+          type: string
+          description: Id пользователя Keycloak (`sub`), создавшего заявку
+        authorName:
+          type: string
+          description: Имя автора (`preferred_username`)
+        messagesCount:
+          type: integer
+          minimum: 0
+          description: Количество сообщений в чате (события смены статуса не считаются)
+        lastMessageAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Дата последнего сообщения; `null`, если сообщений ещё нет
+
+    CreateApplicationRequest:
+      type: object
+      required: [title, project]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        project:
+          $ref: '#/components/schemas/Project'
+
+    ChangeStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+
+    ChatAttachment:
+      type: object
+      description: Метаданные вложения; сам файл скачивается через `GET /files/{id}`
+      required: [id, name, size, type]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: Исходное имя файла
+          example: error.png
+        size:
+          type: integer
+          description: Размер в байтах
+          example: 184320
+        type:
+          type: string
+          description: MIME-тип
+          example: image/png
+
+    ChatMessage:
+      type: object
+      description: Сообщение пользователя в чате
+      required: [type, id, applicationId, authorId, authorName, text, createdAt]
+      properties:
+        type:
+          type: string
+          enum: [message]
+        id:
+          type: string
+          format: uuid
+        applicationId:
+          type: string
+          example: '1025'
+        authorId:
+          type: string
+          description: Id пользователя Keycloak (`sub`)
+        authorName:
+          type: string
+          description: Имя пользователя (`preferred_username`) на момент отправки
+        isAdmin:
+          type: boolean
+          description: Сообщение написано администратором (в интерфейсе подписывается «Поддержка»)
+        text:
+          type: string
+          maxLength: 2000
+          description: Текст; может быть пустой строкой, если приложен файл
+        attachment:
+          $ref: '#/components/schemas/ChatAttachment'
+        createdAt:
+          type: string
+          format: date-time
+
+    StatusEvent:
+      type: object
+      description: |
+        Событие в ленте чата: изменение статуса заявки.
+        Без `previousStatus` — это первое присвоение статуса (создание заявки, «Заявка открыта»).
+      required: [type, id, applicationId, authorId, authorName, status, createdAt]
+      properties:
+        type:
+          type: string
+          enum: [status]
+        id:
+          type: string
+          format: uuid
+        applicationId:
+          type: string
+          example: '1025'
+        authorId:
+          type: string
+          description: Кто изменил статус (`sub`)
+        authorName:
+          type: string
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        previousStatus:
+          $ref: '#/components/schemas/ApplicationStatus'
+        createdAt:
+          type: string
+          format: date-time
+
+    ChatItem:
+      description: Элемент ленты чата — сообщение или смена статуса (различаются полем `type`)
+      oneOf:
+        - $ref: '#/components/schemas/ChatMessage'
+        - $ref: '#/components/schemas/StatusEvent'
+      discriminator:
+        propertyName: type
+        mapping:
+          message: '#/components/schemas/ChatMessage'
+          status: '#/components/schemas/StatusEvent'
+
+    CreateMessageRequest:
+      type: object
+      description: Нужно передать `text`, `file` или оба поля
+      anyOf:
+        - required: [text]
+        - required: [file]
+      properties:
+        text:
+          type: string
+          maxLength: 2000
+        file:
+          type: string
+          format: binary
+          description: Файл до 10 МБ
+
+    Notification:
+      type: object
+      required:
+        - id
+        - kind
+        - applicationId
+        - applicationTitle
+        - actorName
+        - createdAt
+        - read
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          description: application_created — создана заявка; message_created — новое сообщение; status_changed — изменён статус
+          enum: [application_created, message_created, status_changed]
+        applicationId:
+          type: string
+          example: '1025'
+        applicationTitle:
+          type: string
+        actorName:
+          type: string
+          description: Кто совершил действие
+        text:
+          type: string
+          description: Превью сообщения (для `message_created`); пустая строка, если в сообщении только файл
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        previousStatus:
+          $ref: '#/components/schemas/ApplicationStatus'
+        createdAt:
+          type: string
+          format: date-time
+        read:
+          type: boolean
+
+    NotificationsResponse:
+      type: object
+      required: [items, unreadCount]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        unreadCount:
+          type: integer
+          minimum: 0
+          description: Общее число непрочитанных (не зависит от `limit` и `unreadOnly`)
+
+    MarkReadRequest:
+      type: object
+      anyOf:
+        - required: [ids]
+        - required: [all]
+      properties:
+        ids:
+          type: array
+          items:
+            type: string
+        all:
+          type: boolean
+
+    ApiError:
+      type: object
+      required: [statusCode, message]
+      properties:
+        statusCode:
+          type: integer
+          example: 400
+        message:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+        error:
+          type: string
+          example: Bad Request
+
+  responses:
+    BadRequest:
+      description: Некорректный запрос (ошибка валидации)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Unauthorized:
+      description: Нет токена или он недействителен
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Forbidden:
+      description: Недостаточно прав
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    NotFound:
+      description: Не найдено
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'

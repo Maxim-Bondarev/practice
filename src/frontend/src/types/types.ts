@@ -1,50 +1,30 @@
 import type { ReactNode } from "react";
 import type Keycloak from "keycloak-js";
+import type { components } from "../api/schema";
 
-export type ApplicationStatus =
-  | "На модерации"
-  | "Новые"
-  | "В обработке"
-  | "Завершенные"
-  | "Отклоненные";
+type Schemas = components["schemas"];
+
+export type Application = Schemas["Application"];
+export type ApplicationStatus = Schemas["ApplicationStatus"];
+export type ApplicationSort = Schemas["ApplicationSort"];
+export type Project = Schemas["Project"];
+export type CreateApplicationRequest = Schemas["CreateApplicationRequest"];
+export type ChatAttachment = Schemas["ChatAttachment"];
+export type ChatMessage = Schemas["ChatMessage"];
+export type StatusEvent = Schemas["StatusEvent"];
+export type ChatItem = Schemas["ChatItem"];
+export type AppNotification = Schemas["Notification"];
+export type ApiError = Schemas["ApiError"];
+
 
 export type ApplicationCategory =
-  | "Все"
-  | "Новые"
-  | "В обработке"
-  | "Завершенные"
-  | "Отклоненные"
+  | "Актуальные"
   | "Мои"
-  | "На модерации";
-
-export interface Application {
-  id: string;
-  title: string;
-  date: Date;
-  project: Project | "";
-  status: ApplicationStatus;
-  authorId: string;
-}
-export interface ChatAttachment {
-  id: string;
-  name: string;
-  size: number;
-  type: string;
-}
-export interface ChatMessage {
-  id: string;
-  applicationId: string;
-  authorId: string;
-  authorName: string;
-  isAdmin?: boolean;
-  text: string;
-  attachment?: ChatAttachment;
-  createdAt: string;
-}
-export type Project = "1X" | "Music" | "Delivery";
+  | "Все"
+  | ApplicationStatus;
 
 export interface ApplicationForm {
-  title: string;
+  title: CreateApplicationRequest["title"];
   project: Project | "";
 }
 
@@ -74,52 +54,7 @@ export interface AuthProviderProps {
   children: ReactNode;
 }
 
-export interface HomePageProps {
-  items: Application[];
-  searchValue: string;
-  onCategoryChange: (category: ApplicationCategory) => void;
-  onSetSearchValue: (value: string) => void;
-}
-
 export interface CategoriesProps {
-  items: Application[];
-  current?: ApplicationCategory;
+  current: ApplicationCategory;
   onCategoryChange: (category: ApplicationCategory) => void;
-}
-
-export interface ApplicationDto {
-  id: string;
-  title: string;
-  date: string;
-  project: Project;
-  status: ApplicationStatus;
-  authorId?: string;
-}
-
-export interface CreateApplicationRequest {
-  title: string;
-  project: Project;
-}
-
-export interface UpdateApplicationStatusRequest {
-  status: ApplicationStatus;
-}
-
-export interface ModerationDecisionRequest {
-  decision: "approve" | "reject";
-  comment?: string;
-}
-
-export interface ApiError {
-  statusCode: number;
-  message: string | string[];
-  error?: string;
-}
-
-export type ApplicationsResponse = ApplicationDto[];
-
-export interface ApplicationFilters {
-  status?: ApplicationStatus;
-  search?: string;
-  mine?: boolean;
 }

@@ -1,4 +1,3 @@
-
 const DB_NAME = "feedback-files";
 const STORE = "files";
 

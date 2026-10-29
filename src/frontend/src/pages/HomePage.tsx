@@ -1,28 +1,50 @@
-import React from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import type { Application, ApplicationCategory } from "../types/types";
+import type {
+  Application,
+  ApplicationCategory,
+  ApplicationSort,
+  Project,
+} from "../types/types";
+import { PROJECTS } from "../domain/statuses";
 import Categories from "../components/Categories";
+import ApplicationCard from "../components/ApplicationCard";
 import { IoClose } from "react-icons/io5";
+
+const SORT_LABELS: Record<ApplicationSort, string> = {
+  newest: "Сначала новые",
+  oldest: "Сначала старые",
+  activity: "По последнему сообщению",
+};
+
+const SORTS = Object.keys(SORT_LABELS) as ApplicationSort[];
 
 interface Props {
   items: Application[];
-  category: ApplicationCategory;   
+  category: ApplicationCategory;
+  project: Project | "";
+  sort: ApplicationSort;
   searchValue: string;
   onCategoryChange: (c: ApplicationCategory) => void;
+  onProjectChange: (project: Project | "") => void;
+  onSortChange: (sort: ApplicationSort) => void;
   onSetSearchValue: (value: string) => void;
 }
 
 function HomePage({
   items,
-  category,                        
+  category,
+  project,
+  sort,
   searchValue,
-  onSetSearchValue,
   onCategoryChange,
+  onProjectChange,
+  onSortChange,
+  onSetSearchValue,
 }: Props) {
   const { authenticated, login } = useAuth();
-
   const navigate = useNavigate();
+
   return (
     <div className="home_page">
       <h1>Заявки</h1>
@@ -32,7 +54,7 @@ function HomePage({
           value={searchValue}
           onChange={(event) => onSetSearchValue(event.target.value)}
           type="text"
-          placeholder="поиск заявки"
+          placeholder="Поиск по названию, автору или номеру"
         />
         <IoClose
           style={{
@@ -45,24 +67,44 @@ function HomePage({
           onClick={() => onSetSearchValue("")}
         />
       </div>
-      <Categories items={items} current={category} onCategoryChange={onCategoryChange} />
-      <div className="applications-list">
-        {items
-          .filter(
-            (item) =>
-              item.title.toLowerCase().includes(searchValue.toLowerCase()) &&
-              item.status !== "На модерации",
-          )
-          .map((item) => (
-            <Link key={item.id} to={`applications/${item.id}`}>
-              <div key={item.id}>
-                <h1>{item.title}</h1>
-                <span className="status">{item.status}</span>
-                <span>{item.date.toLocaleDateString()}</span>
-              </div>
-            </Link>
-          ))}
+
+      <div className="filters">
+        <Categories current={category} onCategoryChange={onCategoryChange} />
+        <div className="filter_selects">
+          <select
+            className="filter_select"
+            aria-label="Проект"
+            value={project}
+            onChange={(e) => onProjectChange(e.target.value as Project | "")}
+          >
+            <option value="">Все проекты</option>
+            {PROJECTS.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+          <select
+            className="filter_select"
+            aria-label="Сортировка"
+            value={sort}
+            onChange={(e) => onSortChange(e.target.value as ApplicationSort)}
+          >
+            {SORTS.map((s) => (
+              <option key={s} value={s}>
+                {SORT_LABELS[s]}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
+
+      <div className="applications-list">
+        {items.map((item) => (
+          <ApplicationCard key={item.id} item={item} />
+        ))}
+      </div>
+
       {authenticated ? (
         <button onClick={() => navigate("/create-application")}>
           + Создать заявку

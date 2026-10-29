@@ -1,27 +1,26 @@
-import type { CategoriesProps, ApplicationCategory } from "../types/types";
+import type { ApplicationCategory, CategoriesProps } from "../types/types";
 
-const categories: {
-  key: ApplicationCategory;
-  name: string;
-}[] = [
-  { key: "Все", name: "Все" },
-  { key: "Новые", name: "Новые" },
-  { key: "В обработке", name: "В обработке" },
-  { key: "Завершенные", name: "Завершенные" },
-  { key: "Отклоненные", name: "Отклоненные" },
-  { key: "Мои", name: "Мои" },
-];
+const CATEGORY_NAMES: Record<ApplicationCategory, string> = {
+  Актуальные: "Актуальные",
+  Открыта: "Открытые",
+  "В обработке": "В обработке",
+  Закрыта: "Закрытые",
+  Мои: "Мои",
+  Все: "Все",
+};
+
+const categories = Object.keys(CATEGORY_NAMES) as ApplicationCategory[];
 
 function Categories({ current, onCategoryChange }: CategoriesProps) {
   return (
     <div className="categories">
-      {categories.map((category) => (
+      {categories.map((key) => (
         <div
-          key={category.key}
-          className={current === category.key ? "active" : undefined}
-          onClick={() => onCategoryChange(category.key)}
+          key={key}
+          className={current === key ? "active" : undefined}
+          onClick={() => onCategoryChange(key)}
         >
-          {category.name}
+          {CATEGORY_NAMES[key]}
         </div>
       ))}
     </div>
