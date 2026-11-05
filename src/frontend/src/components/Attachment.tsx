@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
 import { GoPaperclip } from "react-icons/go";
-import { getFile } from "../storage/file";
+import { fileUrl } from "../api/client";
 import type { ChatAttachment } from "../types/types";
 
 const PREVIEW_TYPES = new Set([
@@ -17,35 +16,7 @@ function formatSize(bytes: number): string {
 }
 
 function Attachment({ attachment }: { attachment: ChatAttachment }) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let objectUrl: string | null = null;
-    let cancelled = false;
-
-    getFile(attachment.id)
-      .then((blob) => {
-        if (cancelled) return;
-        if (!blob) {
-          setFailed(true);
-          return;
-        }
-        objectUrl = URL.createObjectURL(blob);
-        setUrl(objectUrl);
-      })
-      .catch(() => {
-        if (!cancelled) setFailed(true);
-      });
-
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [attachment.id]);
-
-  if (failed) return <p className="message_file">Файл недоступен</p>;
-  if (!url) return <p className="message_file">Загрузка файла…</p>;
+  const url = fileUrl(attachment.id);
 
   if (PREVIEW_TYPES.has(attachment.type)) {
     return (

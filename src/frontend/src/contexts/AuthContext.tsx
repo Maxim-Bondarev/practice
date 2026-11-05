@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -46,6 +47,44 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const initRef = useRef(false);
 
+  const loadUserProfile = async (): Promise<UserProfile> => {
+    const parsed = keycloak.tokenParsed as Record<string, unknown> | undefined;
+    const realmAccess = parsed?.realm_access as
+      | { roles?: string[] }
+      | undefined;
+    const resourceAccess = parsed?.resource_access as
+      | Record<string, { roles?: string[] }>
+      | undefined;
+
+    const SYSTEM_ROLES = new Set([
+      "default-roles-practics",
+      "offline_access",
+      "uma_authorization",
+      "manage-account",
+      "view-profile",
+      "view-consent",
+      "manage-consent",
+      "delete-account",
+    ]);
+
+    const realmRoles = (realmAccess?.roles ?? []).filter(
+      (r) => !SYSTEM_ROLES.has(r),
+    );
+    const clientRoles =
+      resourceAccess?.[import.meta.env.VITE_KEYCLOAK_CLIENT_ID as string]
+        ?.roles ?? [];
+
+    return {
+      id: String(parsed?.sub ?? ""),
+      username: String(parsed?.preferred_username ?? ""),
+      email: parsed?.email as string | undefined,
+      firstName: parsed?.given_name as string | undefined,
+      lastName: parsed?.family_name as string | undefined,
+      roles: Array.from(new Set([...realmRoles, ...clientRoles])),
+      role: parsed?.role as string,
+    };
+  };
+
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
@@ -86,44 +125,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
   }, []);
 
-  const loadUserProfile = async (): Promise<UserProfile> => {
-    const parsed = keycloak.tokenParsed as Record<string, unknown> | undefined;
-    const realmAccess = parsed?.realm_access as
-      | { roles?: string[] }
-      | undefined;
-    const resourceAccess = parsed?.resource_access as
-      | Record<string, { roles?: string[] }>
-      | undefined;
-
-    const SYSTEM_ROLES = new Set([
-      "default-roles-practics",
-      "offline_access",
-      "uma_authorization",
-      "manage-account",
-      "view-profile",
-      "view-consent",
-      "manage-consent",
-      "delete-account",
-    ]);
-
-    const realmRoles = (realmAccess?.roles ?? []).filter(
-      (r) => !SYSTEM_ROLES.has(r),
-    );
-    const clientRoles =
-      resourceAccess?.[import.meta.env.VITE_KEYCLOAK_CLIENT_ID as string]
-        ?.roles ?? [];
-
-    return {
-      id: String(parsed?.sub ?? ""),
-      username: String(parsed?.preferred_username ?? ""),
-      email: parsed?.email as string | undefined,
-      firstName: parsed?.given_name as string | undefined,
-      lastName: parsed?.family_name as string | undefined,
-      roles: Array.from(new Set([...realmRoles, ...clientRoles])),
-      role: parsed?.role as string,
-    };
-  };
-
   const login = async (redirectPath: string = "/") => {
     await keycloak.login({
       redirectUri: window.location.origin + redirectPath,
@@ -145,10 +146,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
   };
 
-  const hasRole = (role: string) => {
-    if (!user) return false;
-    return user.roles.includes(role);
-  };
+  const hasRole = useCallback(
+    (role: string) => {
+      if (!user) return false;
+      return user.roles.includes(role);
+    },
+    [user],
+  );
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -163,12 +167,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       loadUserProfile,
       hasRole,
     }),
-    [initialized, authenticated, user, token],
+    [initialized, authenticated, user, token, hasRole],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) {

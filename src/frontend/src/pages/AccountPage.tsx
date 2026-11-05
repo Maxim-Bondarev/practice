@@ -2,19 +2,23 @@ import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { FaArrowLeftLong } from "react-icons/fa6";
 
-import { useApplications } from "../storage/hooks";
+import { useApplications } from "../api/hooks";
 import ApplicationCard from "../components/ApplicationCard";
 
 function AccountPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const applications = useApplications();
+  const { items } = useApplications({
+    category: "Все",
+    mine: true,
+    authenticated: Boolean(user),
+  });
 
   if (!user) {
     return;
   }
 
-  const myApplications = applications
+  const myApplications = items
     .filter((item) => item.authorId === user.id)
     .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
 

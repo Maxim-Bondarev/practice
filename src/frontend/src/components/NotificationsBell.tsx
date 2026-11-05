@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { IoNotificationsOutline } from "react-icons/io5";
 import { useAuth } from "../contexts/AuthContext";
-import { useNotifications } from "../storage/hooks";
+import { useNotifications } from "../api/hooks";
 import type { AppNotification } from "../types/types";
 import { formatMessageTime } from "../utils/format";
 

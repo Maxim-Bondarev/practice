@@ -1,11 +1,14 @@
+import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
-import { changeApplicationStatus } from "../storage/db";
+import { changeApplicationStatus } from "../api/mutations";
+import { apiErrorMessage } from "../api/errors";
 import { allowedTransitions, transitionLabel } from "../domain/statuses";
 import type { Application, ApplicationStatus } from "../types/types";
 
 function StatusActions({ application }: { application: Application }) {
   const { user } = useAuth();
+  const [pending, setPending] = useState<ApplicationStatus | null>(null);
   if (!user) return null;
 
   const isAdmin = user.roles.includes("admin");
@@ -16,14 +19,18 @@ function StatusActions({ application }: { application: Application }) {
   });
   if (transitions.length === 0) return null;
 
-  const handleChange = (status: ApplicationStatus) => {
-    const updated = changeApplicationStatus({
-      applicationId: application.id,
-      status,
-      actor: { id: user.id, name: user.username, isAdmin },
-    });
-    if (updated) toast.success(`Статус изменён: ${status}`);
-    else toast.error("Не удалось изменить статус");
+  const handleChange = async (status: ApplicationStatus) => {
+    if (pending) return;
+    setPending(status);
+
+    try {
+      await changeApplicationStatus(application.id, status);
+      toast.success(`Статус изменён: ${status}`);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Не удалось изменить статус"));
+    } finally {
+      setPending(null);
+    }
   };
 
   return (
@@ -33,7 +40,8 @@ function StatusActions({ application }: { application: Application }) {
           key={status}
           type="button"
           data-to={status}
-          onClick={() => handleChange(status)}
+          disabled={pending !== null}
+          onClick={() => void handleChange(status)}
         >
           {transitionLabel(application.status, status)}
         </button>

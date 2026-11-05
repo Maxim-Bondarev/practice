@@ -57,6 +57,24 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
+The e2e suite is an integration suite: it boots the real `AppModule`, talks to
+Postgres over HTTP through `supertest` and replaces Keycloak authentication with
+an `x-test-user` header guard. Start the database first:
+
+```bash
+# from the repository root
+$ docker compose up -d postgres
+```
+
+By default the suite creates and resets a dedicated `practics_test` database on
+`localhost:9300` (the port published by `compose.yaml`). Point it somewhere else
+with `TEST_DATABASE_URL`:
+
+```bash
+$ TEST_DATABASE_URL=postgres://postgres:123456@localhost:5432/practics_test npm run test:e2e
+```
+
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.

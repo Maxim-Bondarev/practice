@@ -21,6 +21,7 @@ const SORTS = Object.keys(SORT_LABELS) as ApplicationSort[];
 
 interface Props {
   items: Application[];
+  error?: string | null;
   category: ApplicationCategory;
   project: Project | "";
   sort: ApplicationSort;
@@ -33,6 +34,7 @@ interface Props {
 
 function HomePage({
   items,
+  error,
   category,
   project,
   sort,
@@ -49,6 +51,7 @@ function HomePage({
     <div className="home_page">
       <h1>Заявки</h1>
       <p>Здесь вы можете найти и отследить обращения</p>
+      {error && <p className="api_error">{error}</p>}
       <div className="search_block">
         <input
           value={searchValue}

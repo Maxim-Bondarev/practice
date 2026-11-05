@@ -364,6 +364,11 @@ textarea {
   color: var(--muted);
 }
 
+.home_page > .api_error {
+  margin: -16px 0 20px;
+  color: #d93025;
+}
+
 .search_block {
   position: relative;
 }

@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import type { ApplicationForm, Project } from "../types/types";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
-import { createApplication } from "../storage/db";
+import { createApplication } from "../api/mutations";
+import { apiErrorMessage } from "../api/errors";
 
 function CreateApplicationPage() {
   const { initialized, authenticated, user, login } = useAuth();
@@ -37,28 +38,26 @@ function CreateApplicationPage() {
     );
   }
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!formValue.project || !formValue.title.trim()) return;
 
-    const created = createApplication({
-      title: formValue.title,
-      project: formValue.project as Project,
-      author: { id: user.id, name: user.username },
-    });
+    try {
+      const created = await createApplication({
+        title: formValue.title,
+        project: formValue.project as Project,
+      });
 
-    if (!created) {
-      toast.error("Не удалось сохранить заявку");
-      return;
+      setFormValue({ title: "", project: "" });
+      toast.success("Успешно", {
+        description: "Заявка успешно отправлена",
+      });
+
+      navigate(`/applications/${created.id}`);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Не удалось сохранить заявку"));
     }
-
-    setFormValue({ title: "", project: "" });
-    toast.success("Успешно", {
-      description: "Заявка успешно отправлена",
-    });
-
-    navigate(`/applications/${created.id}`);
   };
 
   return (

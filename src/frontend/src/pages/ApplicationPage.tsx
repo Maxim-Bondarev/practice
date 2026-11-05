@@ -5,15 +5,18 @@ import { FaArrowLeftLong } from "react-icons/fa6";
 import Chat from "../components/Chat";
 import StatusActions from "../components/StatusActions";
 import { useAuth } from "../contexts/AuthContext";
-import { useApplication, useChatItems } from "../storage/hooks";
-import { markApplicationNotificationsRead } from "../storage/notifications";
+import {
+  markApplicationNotificationsRead,
+  useApplication,
+  useChatItems,
+} from "../api/hooks";
 import { formatDate } from "../utils/format";
 
 function ApplicationPage() {
   const { id } = useParams<{ id: string }>();
   const { initialized, user } = useAuth();
-  const application = useApplication(id);
-  const items = useChatItems(application?.id ?? "");
+  const { application, loading } = useApplication(id);
+  const { items } = useChatItems(application?.id ?? "");
 
   const userId = user?.id;
   const isAdmin = !!user && user.roles.includes("admin");
@@ -21,12 +24,12 @@ function ApplicationPage() {
   const itemsCount = items.length;
 
   useEffect(() => {
-    if (userId && applicationId) {
-      markApplicationNotificationsRead({ id: userId, isAdmin }, applicationId);
+    if (userId && applicationId && itemsCount > 0) {
+      void markApplicationNotificationsRead(applicationId).catch(() => {});
     }
   }, [userId, isAdmin, applicationId, itemsCount]);
 
-  if (!initialized) return null;
+  if (!initialized || loading) return null;
 
   if (!application) {
     return (

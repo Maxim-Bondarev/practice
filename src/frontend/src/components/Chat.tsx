@@ -10,12 +10,12 @@ import { VscSend } from "react-icons/vsc";
 import { IoClose } from "react-icons/io5";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
-import { useChatItems } from "../storage/hooks";
-import { addMessage, MAX_MESSAGE_LENGTH, newId } from "../storage/db";
-import { deleteFile, MAX_FILE_SIZE, saveFile } from "../storage/file";
+import { useChatItems } from "../api/hooks";
+import { sendMessage } from "../api/mutations";
+import { apiErrorMessage } from "../api/errors";
+import { MAX_FILE_SIZE, MAX_MESSAGE_LENGTH } from "../api/constants";
 import type {
   Application,
-  ChatAttachment,
   ChatMessage,
   StatusEvent,
 } from "../types/types";
@@ -72,7 +72,7 @@ function MessageBubble({
 
 function Chat({ application }: ChatProps) {
   const { user, authenticated } = useAuth();
-  const items = useChatItems(application.id);
+  const { items } = useChatItems(application.id);
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
@@ -128,37 +128,13 @@ function Chat({ application }: ChatProps) {
 
     setSending(true);
     try {
-      let attachment: ChatAttachment | undefined;
-      if (file) {
-        const id = newId();
-        await saveFile(id, file);
-        attachment = {
-          id,
-          name: file.name,
-          size: file.size,
-          type: file.type,
-        };
-      }
+      await sendMessage(application.id, { text, file });
 
-      const saved = addMessage({
-        applicationId: application.id,
-        author: { id: user.id, name: user.username, isAdmin },
-        text,
-        attachment,
-      });
-
-      if (!saved) {
-        if (attachment) await deleteFile(attachment.id).catch(() => {});
-        toast.error("Не удалось отправить сообщение");
-        return;
-      }
-
-      stickToBottomRef.current = true; 
+      stickToBottomRef.current = true;
       setText("");
       setFile(null);
     } catch (err) {
-      console.error(err);
-      toast.error("Не удалось сохранить файл");
+      toast.error(apiErrorMessage(err, "Не удалось отправить сообщение"));
     } finally {
       setSending(false);
     }

@@ -3,7 +3,25 @@
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
+  "extensionsToTreatAsEsm": [".ts"],
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
-  }
+    "^.+\\.(t|j)s$": [
+      "ts-jest",
+      {
+        "useESM": true,
+        "tsconfig": {
+          "module": "esnext",
+          "moduleResolution": "bundler"
+        }
+      }
+    ]
+  },
+  "moduleNameMapper": {
+    "^jwks-rsa$": "<rootDir>/stubs/jwks-rsa.ts",
+    "^(\\.{1,2}/.*)\\.js$": "$1"
+  },
+  "setupFiles": ["<rootDir>/e2e-env.ts"],
+  "globalSetup": "<rootDir>/global-setup.js",
+  "testTimeout": 30000,
+  "maxWorkers": 1
 }
